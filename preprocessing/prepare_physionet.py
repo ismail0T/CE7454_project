@@ -10,7 +10,7 @@ import ntpath
 import os
 import shutil
 import urllib
-import urllib2
+#import urllib2
 
 from datetime import datetime
 
@@ -65,9 +65,9 @@ EPOCH_SEC_SIZE = 30
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", type=str, default="D:/sleep-edf-database-expanded-1.0.0/sleep-cassette",
+    parser.add_argument("--data_dir", type=str, default="E:/data_2013",
                         help="File path to the CSV or NPY file that contains walking data.")
-    parser.add_argument("--output_dir", type=str, default="D:/EDF_output_cassette/eeg_fpz_cz",
+    parser.add_argument("--output_dir", type=str, default="E:/data_2013_output/eeg_fpz_cz",
                         help="Directory where to save outputs.")
     parser.add_argument("--select_ch", type=str, default="EEG Fpz-Cz",
                         help="File path to the trained model used to estimate walking speeds.")
@@ -105,7 +105,7 @@ def main():
         raw_ch_df.set_index(np.arange(len(raw_ch_df)))
 
         # Get raw header
-        f = open(psg_fnames[i], 'r')
+        f = open(psg_fnames[i], 'r', errors='ignore')
         reader_raw = dhedfreader.BaseEDFReader(f)
         reader_raw.read_header()
         h_raw = reader_raw.header
@@ -113,7 +113,7 @@ def main():
         raw_start_dt = datetime.strptime(h_raw['date_time'], "%Y-%m-%d %H:%M:%S")
 
         # Read annotation and its header
-        f = open(ann_fnames[i], 'r')
+        f = open(ann_fnames[i], 'r', errors='ignore')
         reader_ann = dhedfreader.BaseEDFReader(f)
         reader_ann.read_header()
         h_ann = reader_ann.header
@@ -131,7 +131,7 @@ def main():
         for a in ann[0]:
             onset_sec, duration_sec, ann_char = a
             ann_str = "".join(ann_char)
-            label = ann2label[ann_str]
+            label = ann2label[ann_str[2:-1]]
             if label != UNKNOWN:
                 if duration_sec % EPOCH_SEC_SIZE != 0:
                     raise Exception("Something wrong")
