@@ -45,6 +45,8 @@ class ConvSimple(nn.Module):
         x = self.pool1(x)
         # print(x.shape)
 
+        x = self.dropout1(x)
+
         # CL2:   64 x 1'500  -->    64 x 1'500
         x = self.conv2(x)
         x = F.relu(x)
@@ -58,6 +60,8 @@ class ConvSimple(nn.Module):
         x = self.conv3(x)
         x = F.relu(x)
         # print(x.shape)
+
+        x = self.dropout1(x)
 
         # MP3: 64 x 376 = 24'064
         x = self.pool3(x)
