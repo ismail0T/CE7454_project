@@ -107,15 +107,20 @@ def plot_CV_history(train_history_over_CV, val_history_over_CV):
         plt.plot(range(1, num_epoch + 1), val_history_over_CV[0])
         plt.legend(['Average Train Accuracy', 'Average Test Accuracy'], loc='upper right', prop={'size': 12})
         plt.suptitle('Cross Validation Performance', fontsize=13.0, y=1.08, fontweight='bold')
+        plt.show()
 
 
 def plot_one_validation_history(train_history, val_history):
     num_epoch = len(train_history)
 
-    print(num_epoch)
+    # print(num_epoch)
     plt.figure(figsize=(18, 6))
     plt.subplot(1, 2, 1)
     plt.plot(range(1, num_epoch + 1), train_history)
     plt.plot(range(1, num_epoch + 1), val_history)
     plt.legend(['Train Accuracy', 'Test Accuracy'], loc='upper right', prop={'size': 12})
     plt.suptitle('Global Performance', fontsize=13.0, y=1.08, fontweight='bold')
+    plt.show()
+
+
+
