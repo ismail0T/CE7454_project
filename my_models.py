@@ -3,6 +3,105 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class ConvLSTM00(nn.Module):
+
+    def __init__(self, bi_dir):
+        super(ConvLSTM00, self).__init__()
+        self.n_classes = 5
+        self.hidden_dim = 256
+        self.bi_dir = bi_dir
+
+        self.conv1 = nn.Conv1d(1, 64, kernel_size=50, padding=1, stride=6)
+        self.pool1 = nn.MaxPool1d(1, stride=8)
+        self.dropout1 = nn.Dropout(0.5)
+
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=8, padding=1, stride=1)
+        self.conv3 = nn.Conv1d(128, 128, kernel_size=8, padding=1, stride=1)
+        self.conv4 = nn.Conv1d(128, 128, kernel_size=8, padding=1, stride=1)
+        self.pool2 = nn.MaxPool1d(1, stride=4)
+
+        self.conv1_2 = nn.Conv1d(1, 64, kernel_size=400, padding=1, stride=50)
+        self.pool1_2 = nn.MaxPool1d(1, stride=4)
+        self.dropout1_2 = nn.Dropout(0.5)
+
+        self.conv2_2 = nn.Conv1d(64, 128, kernel_size=6, padding=1, stride=1)
+        self.conv3_2 = nn.Conv1d(128, 128, kernel_size=6, padding=1, stride=1)
+        self.conv4_2 = nn.Conv1d(128, 128, kernel_size=6, padding=1, stride=1)
+        self.pool2_2 = nn.MaxPool1d(1, stride=2)
+
+        self.linear1 = nn.Linear(1920, 128)
+
+        # self.dropout1 = nn.Dropout(0.4)
+        self.dropout2 = nn.Dropout(0.7)
+
+        # LL2:   128  -->  classes
+        # self.linear2 = nn.Linear(128, self.n_classes)
+
+        # LSTM
+        self.lstm_in_dim = 1920
+        self.lstm = nn.LSTM(self.lstm_in_dim, self.hidden_dim, bidirectional=self.bi_dir)
+
+        # linear
+        self.hidden2label1 = nn.Linear(self.hidden_dim * (1 + int(self.bi_dir)), self.n_classes)
+
+    def forward(self, x, h_init, c_init):
+        out_time = self.conv1(x)
+        out_time = F.relu(out_time)
+        out_time = self.pool1(out_time)
+        out_time = self.dropout1(out_time)
+        out_time = self.conv2(out_time)
+        out_time = F.relu(out_time)
+        out_time = self.conv3(out_time)
+        out_time = F.relu(out_time)
+        out_time = self.conv4(out_time)
+        out_time = F.relu(out_time)
+        out_time = self.pool2(out_time)
+
+        out_freq = self.conv1_2(x)
+        out_freq = F.relu(out_freq)
+        out_freq = self.pool1_2(out_freq)
+        out_freq = self.dropout1_2(out_freq)
+        out_freq = self.conv2_2(out_freq)
+        out_freq = F.relu(out_freq)
+        out_freq = self.conv3_2(out_freq)
+        out_freq = F.relu(out_freq)
+        out_freq = self.conv4_2(out_freq)
+        out_freq = F.relu(out_freq)
+        out_freq = self.pool2_2(out_freq)
+
+        x = torch.cat((out_time, out_freq), 2)
+        x = self.dropout1(x)
+
+
+        x = x.reshape(x.size(0), x.size(1) * x.size(2))
+        # print(x.shape)  # 24'064
+
+        # x = self.linear1(x)
+        # x = F.relu(x)
+        #
+        # # Droput
+        # x = self.dropout1(x)
+
+        cnn_x = F.relu(x)
+        # print('cnn_x', cnn_x.shape)
+        # LSTM
+        g_seq = cnn_x.unsqueeze(dim=1)
+        # print('g_seq', g_seq.shape)
+
+        lstm_out, (h_final, c_final) = self.lstm(g_seq, (h_init, c_init))
+
+        # Droput
+        lstm_out = self.dropout2(lstm_out)
+
+        # linear
+        cnn_lstm_out = self.hidden2label1(lstm_out)  # activations are implicit
+
+        # output
+        scores = cnn_lstm_out
+
+        return scores, h_final, c_final
+
+
 class ConvLSTM(nn.Module):
 
     def __init__(self, bi_dir):
@@ -38,6 +137,7 @@ class ConvLSTM(nn.Module):
         self.hidden2label1 = nn.Linear(self.hidden_dim * (1 + int(self.bi_dir)), self.n_classes)
 
     def forward(self, x, h_init, c_init):
+
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
