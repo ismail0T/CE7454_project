@@ -116,31 +116,31 @@ for fold_idx in range(num_folds):
         data_loader.save_to_npz_file(X_train, y_train,data_loader.sampling_rate,fname)
         data_loader.save_to_npz_file(X_test, y_test, data_loader.sampling_rate, fname_test)
 
-    X_train = X_train[:(X_train.shape[0] // hparams["max_time_step"]) * hparams["max_time_step"], :]
-    y_train = y_train[:(X_train.shape[0] // hparams["max_time_step"]) * hparams["max_time_step"]]
+#     X_train = X_train[:(X_train.shape[0] // hparams["max_time_step"]) * hparams["max_time_step"], :]
+#     y_train = y_train[:(X_train.shape[0] // hparams["max_time_step"]) * hparams["max_time_step"]]
 
-    X_train = np.reshape(X_train,[-1,X_test.shape[1],X_test.shape[2]])
-    y_train = np.reshape(y_train,[-1,y_test.shape[1],])
+#     X_train = np.reshape(X_train,[-1,X_test.shape[1],X_test.shape[2]])
+#     y_train = np.reshape(y_train,[-1,y_test.shape[1],])
 
-    # shuffle training data_2013
-    permute = np.random.permutation(len(y_train))
-    X_train = np.asarray(X_train)
-    X_train = X_train[permute]
-    y_train = y_train[permute]
-
-
-    # add '<SOD>' to the beginning of each label sequence, and '<EOD>' to the end of each label sequence (both for training and test sets)
-    y_train= [[char2numY['<SOD>']] + [y_ for y_ in date] + [char2numY['<EOD>']] for date in y_train]
-    y_train = np.array(y_train)
+#     # shuffle training data_2013
+#     permute = np.random.permutation(len(y_train))
+#     X_train = np.asarray(X_train)
+#     X_train = X_train[permute]
+#     y_train = y_train[permute]
 
 
-    y_test= [[char2numY['<SOD>']] + [y_ for y_ in date] + [char2numY['<EOD>']] for date in y_test]
-    y_test = np.array(y_test)
+#     # add '<SOD>' to the beginning of each label sequence, and '<EOD>' to the end of each label sequence (both for training and test sets)
+#     y_train= [[char2numY['<SOD>']] + [y_ for y_ in date] + [char2numY['<EOD>']] for date in y_train]
+#     y_train = np.array(y_train)
 
-    print ('The training set after oversampling: ', classes)
-    for cl in classes:
-        print (cl, len(np.where(y_train==char2numY[cl])[0]))
 
-    #% run CNN and lstm
-        # evalaute
+#     y_test= [[char2numY['<SOD>']] + [y_ for y_ in date] + [char2numY['<EOD>']] for date in y_test]
+#     y_test = np.array(y_test)
+
+#     print ('The training set after oversampling: ', classes)
+#     for cl in classes:
+#         print (cl, len(np.where(y_train==char2numY[cl])[0]))
+
+#     #% run CNN and lstm
+#         # evalaute
         
