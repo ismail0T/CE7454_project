@@ -1,9 +1,12 @@
+import os
+
 import torch
 import torch.nn as nn
 
 from dataloader import SeqDataLoader
 import matplotlib.pyplot as plt
 import numpy as np
+from imblearn.over_sampling import SMOTE
 
 
 def display_num_param(net):
@@ -57,14 +60,51 @@ def prep_train_validate_data(data_2013_folder, batch_size):
 
 def prep_train_validate_data_CV(data_dir, num_folds, fold_id, batch_size):
     data_loader = SeqDataLoader(data_dir, num_folds, fold_id, classes=5)
-
     X_train, y_train, X_test, y_test = data_loader.load_data()
+
+    traindata_dir = os.path.join("../data_2013/", 'traindata/')
+    if not os.path.exists(traindata_dir):
+        os.mkdir(traindata_dir)
+
+    file_name = os.path.join(traindata_dir, 'trainData_eeg_fpz_cz_SMOTE_all_10s_f' + str(fold_id) + '.npz')
+    if (os.path.isfile(file_name)):
+        X_train, y_train, _ = data_loader.load_npz_file(file_name)
+        print('when loaded: ', X_train.shape, y_train.shape)
+
+    else:
+        classes = ['W', 'N1', 'N2', 'N3', 'REM']
+        char2numY = dict(zip(classes, range(len(classes))))
+
+        nums = []
+        for cl in classes:
+            nums.append(len(np.where(y_train == char2numY[cl])[0]))
+
+        n_osamples = nums[2] - 7000
+        ratio = {0: n_osamples if nums[0] < n_osamples else nums[0], 1: n_osamples if nums[1] < n_osamples else nums[1],
+                 2: nums[2], 3: n_osamples if nums[3] < n_osamples else nums[3],
+                 4: n_osamples if nums[4] < n_osamples else nums[4]}
+
+        sm = SMOTE(random_state=12, ratio=ratio)
+
+        # for cl in classes:
+        #     print("old Train ", cl, len(np.where(y_train==char2numY[cl])[0]), " => ", len(np.where(y_test == char2numY[cl])[0]))
+        #
+        # print('old: ', X_train.shape, y_train.shape)
+
+
+        X_train, y_train = sm.fit_sample(X_train, y_train)
+
+        SeqDataLoader.save_to_npz_file(None, X_train, y_train, 1, file_name)
+
+        # print('new: ', X_train.shape, y_train.shape)
+        # for cl in classes:
+        #     print("new Train ", cl, len(np.where(y_train==char2numY[cl])[0]), " => ", len(np.where(y_test == char2numY[cl])[0]))
+
 
     X_train = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
     y_train = y_train.reshape(y_train.shape[0], 1)
     X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
     y_test = y_test.reshape(y_test.shape[0], 1)
-
 
     total_training_length = (X_train.shape[0] // batch_size) * batch_size
     total_test_length = (X_test.shape[0] // batch_size) * batch_size

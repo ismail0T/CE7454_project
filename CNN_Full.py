@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,8 +17,8 @@ data_dir = "../data_2013_npz"
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
-num_epochs = 10
-batch_size = 128
+num_epochs = 30
+batch_size = 512 * 2
 learning_rate = 0.001
 
 device = torch.device("cuda:1")
@@ -28,6 +30,10 @@ def run_experiment_simple_validation():
     X_train, y_train, X_test, y_test = prep_train_validate_data(data_dir, batch_size)
     print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
     print('\n')
+    char2numY = dict(zip(classes, range(len(classes))))
+    for cl in classes:
+        print("Train ", cl, len(np.where(y_train == char2numY[cl])[0]), " => ",
+              len(np.where(y_test == char2numY[cl])[0]))
 
     # model #
     net = ConvSimple()
@@ -43,26 +49,38 @@ def run_experiment_simple_validation():
     plot_one_validation_history(train_history, validation_history)
 
 
-
-
-
 def run_experiment_cross_validation():
     CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
     train_history_over_CV = []
     val_history_over_CV = []
-    num_folds = 10
+    num_folds = 20
+    data_dir = '../data_2013/eeg_fpz_cz/'
 
     print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
 
+
     for fold_id in range(0, num_folds):
         # Loading Data
-        X_train, y_train, X_test, y_test = prep_train_validate_data(data_dir, num_folds, fold_id, batch_size)
+        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, num_folds, fold_id, batch_size)
 
         if fold_id == 0:
             print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
             print('\n')
-        print("\nFold <" + str(fold_id+1) + ">")
 
+        char2numY = dict(zip(classes, range(len(classes))))
+        for cl in classes:
+            print("__Train ", cl, len(np.where(y_train == char2numY[cl])[0]), " => ",
+                  len(np.where(y_test == char2numY[cl])[0]))
+
+        print("\nFold <" + str(fold_id + 1) + ">")
+        # Train Data Shape:  (38912, 1, 3000)   Test Data Shape:  (2048, 1, 3000)
+        # Train  W 7305  =>  639
+        # Train  N1 2651  =>  74
+        # Train  N2 16375  =>  860
+        # Train  N3 5270  =>  263
+        # Train  REM 7311  =>  212
+
+        # sys.exit()
         # model #
         net = ConvSimple()
         if fold_id == 0:
@@ -85,11 +103,17 @@ def run_experiment_cross_validation():
 
 # train_history =[53.07816247002398, 74.08011091127098, 79.10858812949641, 83.64808153477217, 86.69439448441247, 89.55523081534771, 91.04841127098321, 93.36967925659472, 94.03851918465229, 95.79398980815348]
 # validation_history = [60.50646551724138, 61.341594827586206, 59.348060344827594, 58.16271551724138, 63.03879310344828, 61.449353448275865, 62.365301724137936, 65.32866379310344, 67.88793103448276, 65.40948275862068]
-#
+
 #
 # plot_one_validation_history(train_history, validation_history)
 
+# run_experiment_cross_validation()
+
 run_experiment_simple_validation()
+# SeqDataLoader.save_to_npz_file(None, train_history, validation_history, 1, "file_name")
+
+
+# run_experiment_simple_validation()
 # print('ffff')
 #
 #
@@ -109,4 +133,3 @@ run_experiment_simple_validation()
 # # print(val_history_over_CV.shape)
 #
 # # plot_CV_history(train, test)
-

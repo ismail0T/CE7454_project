@@ -187,7 +187,8 @@ class SeqDataLoader(object):
 
             }
             np.savez(filename, **save_dict)
-
+        # print(npzfiles)
+        # print(r_permute)
         npzfiles = np.asarray(npzfiles)[r_permute]
         train_files = np.array_split(npzfiles, self.n_folds)
         subject_files = train_files[self.fold_idx]

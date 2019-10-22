@@ -156,7 +156,7 @@ class CNN_Utils():
         for epoch in range(1, self.epochs+1):
 
             if not epoch % 10:
-                lr = lr / 1.5
+                lr = lr / 1.0
 
             optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 

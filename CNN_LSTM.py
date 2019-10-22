@@ -16,8 +16,8 @@ classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
 num_epochs = 30
-batch_size = 128
-learning_rate = 0.05
+batch_size = 64
+learning_rate = 0.04
 
 device = torch.device("cuda:1")
 
