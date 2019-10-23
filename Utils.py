@@ -6,6 +6,7 @@ import torch.nn as nn
 from dataloader import SeqDataLoader
 import matplotlib.pyplot as plt
 import numpy as np
+import itertools
 from imblearn.over_sampling import SMOTE
 
 
@@ -113,12 +114,18 @@ def plot_CV_history(train_history_over_CV, val_history_over_CV):
     plt.plot(range(1, num_epoch + 1), train)
     plt.plot(range(1, num_epoch + 1), test)
     plt.legend(['Average Train Accuracy', 'Average Test Accuracy'], loc='upper right', prop={'size': 12})
-    plt.suptitle('Cross Validation Performance', fontsize=13.0, y=1.08, fontweight='bold')
+    plt.suptitle('Cross Validation Performance', fontsize=15.0, y=1.08, fontweight='bold')
+    plt.title('Best accuracy: ' + '{0:.2f}'.format(max_val) + ' % (epoch: ' + str(np.argmax(test)) + ')', fontsize=13.0,
+              y=1.08, fontweight='bold')
+
     plt.show()
 
 
 def plot_one_validation_history(train_history, val_history):
     num_epoch = len(train_history)
+
+
+    max_val = max(val_history)
 
     # print(num_epoch)
     plt.figure(figsize=(18, 6))
@@ -126,8 +133,34 @@ def plot_one_validation_history(train_history, val_history):
     plt.plot(range(1, num_epoch + 1), train_history)
     plt.plot(range(1, num_epoch + 1), val_history)
     plt.legend(['Train Accuracy', 'Test Accuracy'], loc='upper right', prop={'size': 12})
-    plt.suptitle('Global Performance', fontsize=13.0, y=1.08, fontweight='bold')
+    plt.suptitle('Global Performance', fontsize=15.0, y=1.08, fontweight='bold')
+    plt.title('Best accuracy: ' + '{0:.2f}'.format(max_val) + ' % (epoch: ' + str(np.argmax(val_history)) + ')', fontsize=13.0,
+              y=1.08, fontweight='bold')
+
     plt.show()
+
+
+def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
+    print(cm)
+    plt.figure(figsize=(7, 5))
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt), horizontalalignment="center", color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.show()
+
+
 
 
 

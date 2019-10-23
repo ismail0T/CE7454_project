@@ -15,7 +15,7 @@ data_dir = "../data_2013/new"
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
-num_epochs = 50
+num_epochs = 25
 batch_size = 64
 learning_rate = 0.04
 

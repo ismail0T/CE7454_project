@@ -18,6 +18,7 @@ class CNN_Utils():
             total = 0
             num_lstm_layers = 1
             hidden_dim_of_lstm1 = 256
+            confusion_matrix = torch.zeros(5, 5, dtype=torch.int32)
 
             for i in range(0, len(test_x), self.batch_size):
                 test_x_batch = test_x[i:i + self.batch_size]
@@ -42,8 +43,30 @@ class CNN_Utils():
                 total += test_y_batch.size(0)
                 correct += (predicted == test_y_batch.long()).sum().item()
 
+                # confusion matrix
+                stacked = torch.stack(
+                    (
+                        test_y_batch.int()
+                        , predicted.int()
+                    )
+                    , dim=1
+                )
+                for p in stacked:
+                    tl, pl = p.tolist()
+                    confusion_matrix[tl, pl] = confusion_matrix[tl, pl] + 1
+
         acc_test = (correct / total) * 100
 
+        print('Test Accuracy: {} %'.format(acc_test))
+
+        # Confusion matrix
+        print("Test Confusion matrix ")
+        classes = ['W', 'N1', 'N2', 'N3', 'REM']
+        confusion_matrix_accuracy = (confusion_matrix.diag().numpy() / confusion_matrix.sum(1).numpy()) * 100
+        for i, cl in enumerate(classes):
+            print("F1 ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
+
+        # Test the model
         return acc_test
 
     def train_model_conv_lstm(self, net, train_x, train_y, test_x, test_y, bi_dir, device):
@@ -68,6 +91,7 @@ class CNN_Utils():
             acc_list = []
             correct_all = 0
             total_all = 0
+            confusion_matrix = torch.zeros(5, 5, dtype=torch.int32)
 
             for i in range(0, train_x.shape[0], self.batch_size):
                 train_x_batch = train_x[i:i + self.batch_size]
@@ -107,26 +131,46 @@ class CNN_Utils():
                 correct_all += correct
                 total_all += total
 
+                # confusion matrix
+                stacked = torch.stack(
+                    (
+                        train_y_batch.int()
+                        , predicted.int()
+                    )
+                    , dim=1
+                )
+                for p in stacked:
+                    tl, pl = p.tolist()
+                    confusion_matrix[tl, pl] = confusion_matrix[tl, pl] + 1
+
             epoch_time = (time.time() - start) / 60
             acc_train = (correct_all / total_all) * 100
 
             train_history.append(acc_train)
             print('Epoch [{}/{}]'.format(epoch, self.epochs), ", Accuracy : ", str((correct_all / total_all) * 100))
 
+            # Confusion matrix
+            print("Train Confusion matrix ")
+            classes = ['W', 'N1', 'N2', 'N3', 'REM']
+            confusion_matrix_accuracy = (confusion_matrix.diag().numpy() / confusion_matrix.sum(1).numpy()) * 100
+            for i, cl in enumerate(classes):
+                print("F1 ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
+
+            # Test the model
             acc_test = self.test_model_conv_lstm(net, test_x, test_y, bi_dir, device)
             test_history.append(acc_test)
+            print("\n")
 
-            print('Test Accuracy: {} %'.format(acc_test)+"\n")
 
         return train_history, test_history
 
-
-    def test_model(self, net, test_x, test_y, device):
+    def test_model_cnn(self, net, test_x, test_y, device):
 
         net.eval()
         with torch.no_grad():
             correct = 0
             total = 0
+            confusion_matrix = torch.zeros(5, 5, dtype=torch.int32)
 
             for i in range(0, len(test_x), self.batch_size):
                 test_x_batch = test_x[i:i + self.batch_size]
@@ -141,11 +185,32 @@ class CNN_Utils():
                 total += test_y_batch.size(0)
                 correct += (predicted == test_y_batch.long()).sum().item()
 
+                # confusion matrix
+                stacked = torch.stack(
+                    (
+                        test_y_batch.int()
+                        , predicted.int()
+                    )
+                    , dim=1
+                )
+
+                for p in stacked:
+                    tl, pl = p.tolist()
+                    confusion_matrix[tl, pl] = confusion_matrix[tl, pl] + 1
+
         acc_test = (correct / total) * 100
+        print('Test Accuracy: {} %'.format(acc_test))
+
+        # Confusion matrix
+        print("Test Confusion matrix ")
+        classes = ['W', 'N1', 'N2', 'N3', 'REM']
+        confusion_matrix_accuracy = (confusion_matrix.diag().numpy() / confusion_matrix.sum(1).numpy()) * 100
+        for i, cl in enumerate(classes):
+            print("F1 ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
 
         return acc_test
 
-    def train_model(self, net, train_x, train_y, test_x, test_y, device):
+    def train_model_cnn(self, net, train_x, train_y, test_x, test_y, device):
         lr = self.learning_rate
         criterion = nn.CrossEntropyLoss()
         start = time.time()
@@ -165,6 +230,7 @@ class CNN_Utils():
             acc_list = []
             correct_all = 0
             total_all = 0
+            confusion_matrix = torch.zeros(5, 5, dtype=torch.int32)
 
             for i in range(0, train_x.shape[0], self.batch_size):
                 train_x_batch = train_x[i:i + self.batch_size]
@@ -193,15 +259,35 @@ class CNN_Utils():
                 correct_all += correct
                 total_all += total
 
+                # confusion matrix
+                stacked = torch.stack(
+                    (
+                        train_y_batch.int()
+                        , predicted.int()
+                    )
+                    , dim=1
+                )
+                for p in stacked:
+                    tl, pl = p.tolist()
+                    confusion_matrix[tl, pl] = confusion_matrix[tl, pl] + 1
+
             epoch_time = (time.time() - start) / 60
             acc_train = (correct_all / total_all) * 100
 
             train_history.append(acc_train)
             print('Epoch [{}/{}]'.format(epoch, self.epochs), ", Accuracy : ", str((correct_all / total_all) * 100))
 
-            acc_test = self.test_model(net, test_x, test_y, device)
-            test_history.append(acc_test)
+            # Confusion matrix
+            print("Train Confusion matrix ")
+            classes = ['W', 'N1', 'N2', 'N3', 'REM']
+            confusion_matrix_accuracy = (confusion_matrix.diag().numpy() / confusion_matrix.sum(1).numpy()) * 100
+            for i, cl in enumerate(classes):
+                print("F1 ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
 
-            print('Test Accuracy: {} %'.format(acc_test)+"\n")
+            # Test the model
+            acc_test = self.test_model_cnn(net, test_x, test_y, device)
+            test_history.append(acc_test)
+            print("\n")
+            # print('Test Accuracy: {} %'.format(acc_test)+"\n")
 
         return train_history, test_history

@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
+
 from CNN_Utils import *
 from my_models import *
 from dataloader import SeqDataLoader
@@ -17,7 +18,7 @@ data_dir = "../data_2013/new"
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
-num_epochs = 30
+num_epochs = 10
 batch_size = 128
 learning_rate = 0.001
 
@@ -40,7 +41,7 @@ def run_experiment_simple_validation():
     display_num_param(net)
     net = net.to(device)
 
-    train_history, validation_history = CNNutils.train_model(net, X_train, y_train, X_test, y_test, device)
+    train_history, validation_history = CNNutils.train_model_cnn(net, X_train, y_train, X_test, y_test, device)
     print('train_history', train_history)
     print('validation_history', validation_history)
 
@@ -86,7 +87,7 @@ def run_experiment_cross_validation():
             display_num_param(net)
         net = net.to(device)
 
-        train_history, validation_history = CNNutils.train_model(net, X_train, y_train, X_test, y_test, device)
+        train_history, validation_history = CNNutils.train_model_cnn(net, X_train, y_train, X_test, y_test, device)
         # print('train_history', train_history)
         # accumulate history for each CV loop, then take average
         train_history_over_CV.append(train_history)
@@ -106,13 +107,43 @@ def run_experiment_cross_validation():
 #
 # plot_one_validation_history(train_history, validation_history)
 
-run_experiment_cross_validation()
+# run_experiment_cross_validation()
+
+
+# train_y_batch = np.random.uniform(0, 5, 10000)
+# predicted = np.random.uniform(0, 5, 10000)
+#
+# confusion_matrix = torch.zeros(5, 5, dtype=torch.int32)
+#
+# stacked = torch.stack(
+#                     (
+#                         torch.from_numpy(train_y_batch).int()
+#                         , torch.from_numpy(predicted).int()
+#                     )
+#                     , dim=1
+#                 )
+#
+# for p in stacked:
+#     tl, pl = p.tolist()
+#     confusion_matrix[tl, pl] = confusion_matrix[tl, pl] + 1
+#
+# print(confusion_matrix.long().diag())
+# print(confusion_matrix.long().sum(1))
+# confusion_matrix_accuracy = (confusion_matrix.diag().numpy() / confusion_matrix.sum(1).numpy())*100
+#
+# print(confusion_matrix_accuracy)
+#
+# for i, cl in enumerate(classes):
+#     print("F1 ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
+
+
+# plot_confusion_matrix(confusion_matrix, classes)
 
 # run_experiment_simple_validation()
 # SeqDataLoader.save_to_npz_file(None, train_history, validation_history, 1, "file_name")
 
 
-# run_experiment_simple_validation()
+run_experiment_cross_validation()
 # print('ffff')
 #
 #
