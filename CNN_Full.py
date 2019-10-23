@@ -12,13 +12,13 @@ from Utils import *
 import time, sys
 import copy
 
-data_dir = "../data_2013_npz"
+data_dir = "../data_2013/new"
 
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
 num_epochs = 30
-batch_size = 512 * 2
+batch_size = 128
 learning_rate = 0.001
 
 device = torch.device("cuda:1")
@@ -54,14 +54,13 @@ def run_experiment_cross_validation():
     train_history_over_CV = []
     val_history_over_CV = []
     num_folds = 20
-    data_dir = '../data_2013/eeg_fpz_cz/'
 
     print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
 
 
     for fold_id in range(0, num_folds):
         # Loading Data
-        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, num_folds, fold_id, batch_size)
+        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, fold_id, batch_size)
 
         if fold_id == 0:
             print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
@@ -82,7 +81,7 @@ def run_experiment_cross_validation():
 
         # sys.exit()
         # model #
-        net = ConvSimple()
+        net = ConvSimpleBest()
         if fold_id == 0:
             display_num_param(net)
         net = net.to(device)
@@ -107,9 +106,9 @@ def run_experiment_cross_validation():
 #
 # plot_one_validation_history(train_history, validation_history)
 
-# run_experiment_cross_validation()
+run_experiment_cross_validation()
 
-run_experiment_simple_validation()
+# run_experiment_simple_validation()
 # SeqDataLoader.save_to_npz_file(None, train_history, validation_history, 1, "file_name")
 
 

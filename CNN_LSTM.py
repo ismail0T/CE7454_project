@@ -10,12 +10,12 @@ from Utils import *
 import time, sys
 import copy
 
-data_dir = "../data_2013_npz"
+data_dir = "../data_2013/new"
 
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
-num_epochs = 30
+num_epochs = 50
 batch_size = 64
 learning_rate = 0.04
 
@@ -30,7 +30,7 @@ def run_experiment_simple_validation():
     print('\n')
 
     # model #
-    bi_dir = False
+    bi_dir = True
     net = ConvLSTM(bi_dir)
     display_num_param(net)
     net = net.to(device)
@@ -51,13 +51,13 @@ def run_experiment_cross_validation():
     CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
     train_history_over_CV = []
     val_history_over_CV = []
-    num_folds = 10
+    num_folds = 20
 
     print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
 
     for fold_id in range(0, num_folds):
         # Loading Data
-        X_train, y_train, X_test, y_test = prep_train_validate_data(data_dir, num_folds, fold_id, batch_size)
+        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, fold_id, batch_size)
 
         if fold_id == 0:
             print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
@@ -65,14 +65,14 @@ def run_experiment_cross_validation():
         print("\nFold <" + str(fold_id+1) + ">")
 
         # model #
-        net = ConvSimple()
+        bi_dir = True
+        net = ConvLSTM(bi_dir)
         if fold_id == 0:
             display_num_param(net)
         net = net.to(device)
 
-        train_history, validation_history = CNNutils.train_model(net, X_train, y_train, X_test, y_test, device)
-        # print('train_history', train_history)
-        # accumulate history for each CV loop, then take average
+        train_history, validation_history = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
+
         train_history_over_CV.append(train_history)
         val_history_over_CV.append(validation_history)
 
@@ -90,7 +90,7 @@ def run_experiment_cross_validation():
 #
 # plot_one_validation_history(train_history, validation_history)
 
-run_experiment_simple_validation()
+run_experiment_cross_validation()
 # print('ffff')
 #
 #
