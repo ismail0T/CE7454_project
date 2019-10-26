@@ -30,7 +30,7 @@ class ConvLSTM01(nn.Module):
         # MP3: 64 x 750  -->    64 x 375
         self.pool3 = nn.MaxPool1d(2, padding=self.to_pad)
 
-        self.linear1 = nn.Linear(6016, 128)
+        self.linear1 = nn.Linear(6016, 256)
 
         self.dropout1 = nn.Dropout(0.5)
         self.dropout2 = nn.Dropout(0.7)
@@ -39,7 +39,7 @@ class ConvLSTM01(nn.Module):
         # self.linear2 = nn.Linear(128, self.n_classes)
 
         # LSTM
-        self.lstm_in_dim = 128
+        self.lstm_in_dim = 256
         self.lstm = nn.LSTM(self.lstm_in_dim, self.hidden_dim, bidirectional=self.bi_dir)
 
         # linear
@@ -206,6 +206,108 @@ class ConvLSTM00(nn.Module):
 
         return scores, h_final, c_final
 
+
+class MyLSTM(nn.Module):
+
+    def __init__(self, bi_dir):
+        super(MyLSTM, self).__init__()
+        self.n_classes = 5
+        self.hidden_dim = 256
+        self.bi_dir = bi_dir
+
+        self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=2)
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=2)
+        self.pool1 = nn.MaxPool1d(2, stride=4)
+
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
+        self.pool2 = nn.MaxPool1d(2, stride=2)
+
+        # self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
+        # self.pool3 = nn.MaxPool1d(2, stride=1)
+
+        self.linear1 = nn.Linear(576, 128)
+
+        self.dropout1 = nn.Dropout(0.4)
+        self.dropout2 = nn.Dropout(0.7)
+
+        # LL2:   128  -->  classes
+        # self.linear2 = nn.Linear(128, self.n_classes)
+
+        # LSTM
+        self.lstm_in_dim = 600
+        self.lstm = nn.LSTM(self.lstm_in_dim, self.hidden_dim, bidirectional=self.bi_dir)
+
+        # linear
+        self.hidden2label1 = nn.Linear(self.hidden_dim * (1 + int(self.bi_dir)), self.n_classes)
+
+    def forward(self, x, h_init, c_init):
+
+        # x = self.conv1(x)
+        # x = F.relu(x)
+        # x = self.conv2(x)
+        # x = F.relu(x)
+        # x = self.pool1(x)
+        # x = self.dropout1(x)
+        #
+        # x = self.conv3(x)
+        # x = F.relu(x)
+        # x = self.conv4(x)
+        # x = F.relu(x)
+        # x = self.pool2(x)
+        # x = self.dropout1(x)
+
+        x = x.reshape(x.size(0), x.size(1) * x.size(2))
+        # print(x.shape)  # 24'064
+
+        # x = self.linear1(x)
+        # x = F.relu(x)
+        #
+        # # Droput
+        # x = self.dropout1(x)
+
+
+
+        # cnn_x = F.relu(x)
+        # print('cnn_x', cnn_x.shape)
+        # LSTM
+        g_seq = x.unsqueeze(dim=1)
+        # print('g_seq', g_seq.shape)
+
+        lstm_out, (h_final, c_final) = self.lstm(g_seq, (h_init, c_init))
+
+        # Droput
+        lstm_out = self.dropout1(lstm_out)
+
+        # linear
+        lstm_out = self.hidden2label1(lstm_out)  # activations are implicit
+
+        lstm_out = self.dropout1(lstm_out)
+
+        # output
+        scores = lstm_out
+
+        return scores, h_final, c_final
+
+
+class MLP(nn.Module):
+
+    def __init__(self):
+        super(MLP, self).__init__()
+        self.n_classes = 5
+
+        self.layer1 = nn.Linear(3000, 256, bias=False)
+        self.layer2 = nn.Linear(256, self.n_classes, bias=False)
+
+    def forward(self, x):
+        x = x.reshape(x.size(0), x.size(1) * x.size(2))
+
+        y = self.layer1(x)
+        y = F.relu(y)
+
+        scores = self.layer2(y)
+
+        return  scores
 
 class ConvLSTM(nn.Module):
 

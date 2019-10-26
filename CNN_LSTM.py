@@ -53,11 +53,14 @@ def run_experiment_cross_validation():
     val_history_over_CV = []
     num_folds = 20
 
+    confusion_matrix_train_CV = torch.zeros(5, 5, dtype=torch.int32)
+    confusion_matrix_test_CV = torch.zeros(5, 5, dtype=torch.int32)
+
     print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
 
     for fold_id in range(0, num_folds):
         # Loading Data
-        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, fold_id, batch_size)
+        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, fold_id, batch_size, seq_len=1)
 
         if fold_id == 0:
             print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
@@ -65,23 +68,32 @@ def run_experiment_cross_validation():
         print("\nFold <" + str(fold_id+1) + ">")
 
         # model #
-        bi_dir = True
+        bi_dir = False
         net = ConvLSTM(bi_dir)
         if fold_id == 0:
             display_num_param(net)
         net = net.to(device)
 
-        train_history, validation_history = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
+        train_history, validation_history, confusion_matrix_train, confusion_matrix_test = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
 
         train_history_over_CV.append(train_history)
         val_history_over_CV.append(validation_history)
+        confusion_matrix_train_CV += confusion_matrix_train
+        confusion_matrix_test_CV += confusion_matrix_test
+        print(confusion_matrix_test)
 
         del net
 
     print(train_history_over_CV)
     print(val_history_over_CV)
+    confusion_matrix_accuracy = (confusion_matrix_test_CV.diag().numpy() / confusion_matrix_test_CV.sum(
+        1).numpy()) * 100
+    for i, cl in enumerate(classes):
+        print("F1 ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
 
     plot_CV_history(train_history_over_CV, val_history_over_CV)
+    plot_confusion_matrix(confusion_matrix_test_CV, classes)
+
 
 
 # train_history =[53.07816247002398, 74.08011091127098, 79.10858812949641, 83.64808153477217, 86.69439448441247, 89.55523081534771, 91.04841127098321, 93.36967925659472, 94.03851918465229, 95.79398980815348]
