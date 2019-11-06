@@ -6,9 +6,8 @@ from dataloader import SeqDataLoader
 
 from imblearn.over_sampling import SMOTE
 
-
-num_folds = 8  #CHANGE THIS
-data_dir = "E:\data_2013_npz\eeg_fpz_cz"
+num_folds = 20  # CHANGE THIS
+data_dir = "/home/ismail/Dev/data_2013/EOG_horizontal"
 
 if '13' in data_dir:
     data_version = 2013
@@ -21,30 +20,28 @@ classes = ["W", "N1", "N2", "N3", "REM"]
 n_classes = len(classes)
 
 hparams = dict(
-        epochs=10,
-        batch_size=20,  # 10
-        num_units=128,
-        embed_size=10,
-        input_depth=300,#3000,
-        n_channels=100,
-        bidirectional=False,
-        use_attention=True,
-        lstm_layers=2,
-        attention_size=64,
-        beam_width=4,
-        use_beamsearch_decode=False,
-        max_time_step=1,#10,  # 5 3 second best 10# 40 # 100
-        output_max_length=10 + 2,  # max_time_step +1
-        akara2017=True,
-        test_step=5  # each 10 epochs
-    )
-
+    epochs=10,
+    batch_size=20,  # 10
+    num_units=128,
+    embed_size=10,
+    input_depth=300,  # 3000,
+    n_channels=100,
+    bidirectional=False,
+    use_attention=True,
+    lstm_layers=2,
+    attention_size=64,
+    beam_width=4,
+    use_beamsearch_decode=False,
+    max_time_step=1,  # 10,  # 5 3 second best 10# 40 # 100
+    output_max_length=10 + 2,  # max_time_step +1
+    akara2017=True,
+    test_step=5  # each 10 epochs
+)
 
 channel_ename = ""  # CHANGE THIS
 path = os.path.split(data_dir)
-traindata_dir = os.path.join(os.path.abspath(os.path.join(data_dir, os.pardir)),'traindata4/')
+traindata_dir = os.path.join(os.path.abspath(os.path.join(data_dir, os.pardir)), 'traindata_eog/')
 print(str(datetime.now()))
-
 
 for fold_idx in range(num_folds):
     start_time_fold_i = time.time()
@@ -60,30 +57,29 @@ for fold_idx in range(num_folds):
     char2numY['<EOD>'] = len(char2numY)
     num2charY = dict(zip(char2numY.values(), char2numY.keys()))
 
-
     # over-sampling: SMOTE:
-    X_train = np.reshape(X_train,[X_train.shape[0]*X_train.shape[1],-1])
-    y_train= y_train.flatten()
+    # X_train = np.reshape(X_train, [X_train.shape[0] * X_train.shape[1], -1])
+    # y_train = y_train.flatten()
 
     if data_version == 2018:
         # extract just undersamples For 2018
-        under_sample_len = 35000#30000
+        under_sample_len = 35000  # 30000
         Ws = np.where(y_train == char2numY['W'])[0]
         len_W = len(np.where(y_train == char2numY['W'])[0])
         permute = np.random.permutation(len_W)
         len_r = len_W - under_sample_len if (len_W - under_sample_len) > 0 else 0
         permute = permute[:len_r]
-        y_train = np.delete(y_train,Ws[permute],axis =0)
-        X_train = np.delete(X_train,Ws[permute],axis =0)
+        y_train = np.delete(y_train, Ws[permute], axis=0)
+        X_train = np.delete(X_train, Ws[permute], axis=0)
 
-        under_sample_len = 35000 #40000
+        under_sample_len = 35000  # 40000
         N2s = np.where(y_train == char2numY['N2'])[0]
         len_N2 = len(np.where(y_train == char2numY['N2'])[0])
         permute = np.random.permutation(len_N2)
         len_r = len_N2 - under_sample_len if (len_N2 - under_sample_len) > 0 else 0
         permute = permute[:len_r]
-        y_train = np.delete(y_train, N2s[permute],axis =0)
-        X_train = np.delete(X_train, N2s[permute],axis =0)
+        y_train = np.delete(y_train, N2s[permute], axis=0)
+        X_train = np.delete(X_train, N2s[permute], axis=0)
 
     nums = []
     for cl in classes:
@@ -91,29 +87,34 @@ for fold_idx in range(num_folds):
 
     if (os.path.exists(traindata_dir) == False):
         os.mkdir(traindata_dir)
-    fname = os.path.join(traindata_dir,'trainData_'+channel_ename+'_SMOTE_all_10s_f'+str(fold_idx)+'.npz')
-    fname_test = os.path.join(traindata_dir, 'trainData_' + channel_ename + '_SMOTE_all_10s_f' + str(fold_idx) + '_TEST.npz')
+    fname = os.path.join(traindata_dir, 'trainData_' + channel_ename + '_SMOTE_all_10s_f' + str(fold_idx) + '.npz')
+    fname_test = os.path.join(traindata_dir,
+                              'trainData_' + channel_ename + '_SMOTE_all_10s_f' + str(fold_idx) + '_TEST.npz')
     if (os.path.isfile(fname)):
-        X_train, y_train,_ = data_loader.load_npz_file(fname)
+        X_train, y_train, _ = data_loader.load_npz_file(fname)
 
     else:
         if data_version == 2013:
             n_osamples = nums[2] - 7000
-            ratio = {0: n_osamples if nums[0] < n_osamples else nums[0], 1: n_osamples if nums[1] < n_osamples else nums[1],
-                     2: nums[2], 3: n_osamples if nums[3] < n_osamples else nums[3], 4: n_osamples if nums[4] < n_osamples else nums[4]}
+            ratio = {0: n_osamples if nums[0] < n_osamples else nums[0],
+                     1: n_osamples if nums[1] < n_osamples else nums[1],
+                     2: nums[2],
+                     3: n_osamples if nums[3] < n_osamples else nums[3],
+                     4: n_osamples if nums[4] < n_osamples else nums[4]}
 
-
-        if data_version==2018:
-            ratio = {0: n_oversampling if nums[0] < n_oversampling else nums[0], 1: n_oversampling if nums[1] < n_oversampling else nums[1], 2: nums[2],
-                 3: n_oversampling if nums[3] < n_oversampling else nums[3], 4: n_oversampling if nums[4] < n_oversampling else nums[4]}
+        if data_version == 2018:
+            ratio = {0: n_oversampling if nums[0] < n_oversampling else nums[0],
+                     1: n_oversampling if nums[1] < n_oversampling else nums[1], 2: nums[2],
+                     3: n_oversampling if nums[3] < n_oversampling else nums[3],
+                     4: n_oversampling if nums[4] < n_oversampling else nums[4]}
 
         # ratio = {0: 40000 if nums[0] < 40000 else nums[0], 1: 27000 if nums[1] < 27000 else nums[1], 2: nums[2],
         #          3: 30000 if nums[3] < 30000 else nums[3], 4: 27000 if nums[4] < 27000 else nums[4]}
-        sm = SMOTE(random_state=12,ratio=ratio)
+        sm = SMOTE(random_state=12, ratio=ratio)
         # sm = SMOTE(random_state=12, ratio=ratio)
         # sm = RandomUnderSampler(random_state=12,ratio=ratio)
         X_train, y_train = sm.fit_sample(X_train, y_train)
-        data_loader.save_to_npz_file(X_train, y_train,data_loader.sampling_rate,fname)
+        data_loader.save_to_npz_file(X_train, y_train, data_loader.sampling_rate, fname)
         data_loader.save_to_npz_file(X_test, y_test, data_loader.sampling_rate, fname_test)
 
 #     X_train = X_train[:(X_train.shape[0] // hparams["max_time_step"]) * hparams["max_time_step"], :]
@@ -143,4 +144,4 @@ for fold_idx in range(num_folds):
 
 #     #% run CNN and lstm
 #         # evalaute
-        
+

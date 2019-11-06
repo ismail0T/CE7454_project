@@ -10,7 +10,7 @@ from Utils import *
 import time, sys
 import copy
 
-data_dir = "../data_2013/traindata_eeg"
+data_dir = "../data_2013/new"
 
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
@@ -22,12 +22,33 @@ learning_rate = 0.04
 device = torch.device("cuda:1")
 
 
+def run_experiment_simple_validation():
+    print(' num_epochs: ', num_epochs)
+    CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
+    X_train, y_train, X_test, y_test = prep_train_validate_data(data_dir, batch_size)
+    print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
+    print('\n')
+
+    # model #
+    bi_dir = True
+    net = ConvLSTM(bi_dir)
+    display_num_param(net)
+    net = net.to(device)
+
+    train_history, validation_history = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
+    print('train_history', train_history)
+    print('validation_history', validation_history)
+
+    del net
+
+    plot_one_validation_history(train_history, validation_history)
+
 
 
 
 
 def run_experiment_cross_validation():
-    CNNutils = NN_Utils(learning_rate, batch_size, num_epochs)
+    CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
     train_history_over_CV = []
     val_history_over_CV = []
     num_folds = 20
@@ -48,13 +69,12 @@ def run_experiment_cross_validation():
 
         # model #
         bi_dir = False
-        net = ConvGRU(bi_dir)
+        net = ConvLSTM(bi_dir)
         if fold_id == 0:
             display_num_param(net)
         net = net.to(device)
 
-        train_history, validation_history, confusion_matrix_train, \
-            confusion_matrix_test = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
+        train_history, validation_history, confusion_matrix_train, confusion_matrix_test = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
 
         train_history_over_CV.append(train_history)
         val_history_over_CV.append(validation_history)

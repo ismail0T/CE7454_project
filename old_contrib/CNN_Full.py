@@ -13,17 +13,15 @@ from Utils import *
 import time, sys
 import copy
 
-# data_dir_eeg = "../data_2013/eeg_fpz_cz"
-data_dir_eeg = "../data_2013/traindata_eeg"
-
-# data_dir_eog = "../data_2013/EOG_horizontal"
+data_dir_eeg = "../data_2013/eeg_fpz_cz"
+data_dir_eog = "../data_2013/EOG_horizontal"
 
 # print(data_dir)
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
 
 num_epochs = 100
-batch_size = 1
+batch_size = 128
 learning_rate = 0.001
 
 device = torch.device("cuda:1")
@@ -31,8 +29,8 @@ device = torch.device("cuda:1")
 
 def run_experiment_simple_validation():
     print(' num_epochs: ', num_epochs)
-    CNNutils = NN_Utils(learning_rate, batch_size, num_epochs)
-    X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir_eeg, 1, batch_size)
+    CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
+    X_train, y_train, X_test, y_test = prep_train_validate_data_no_smote(data_dir_eeg, batch_size, 1, batch_size)
     print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
     print('\n')
     char2numY = dict(zip(classes, range(len(classes))))
@@ -55,7 +53,7 @@ def run_experiment_simple_validation():
 
 
 def run_experiment_cross_validation():
-    CNNutils = NN_Utils(learning_rate, batch_size, num_epochs)
+    CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
     train_history_over_CV = []
     val_history_over_CV = []
     confusion_matrix_train_CV = []
@@ -65,9 +63,9 @@ def run_experiment_cross_validation():
     print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
 
 
-    for fold_id in range(0, num_folds):
+    for fold_id in range(1, num_folds):
         # Loading Data
-        X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir_eeg, fold_id, batch_size)
+        X_train, y_train, X_test, y_test = prep_train_validate_data_no_smote_double_channel(data_dir_eeg, data_dir_eog, num_folds, fold_id, batch_size)
 
         if fold_id == 0:
             print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
@@ -88,8 +86,8 @@ def run_experiment_cross_validation():
 
         # sys.exit()
         # model #
-        net = TCN00()
-        print("TempConv..")
+        net = ConvSimpleBest()
+        print("ConvSimpleBest..")
         if fold_id == 0:
             display_num_param(net)
         net = net.to(device)

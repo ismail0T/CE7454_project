@@ -4,8 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from tcn import TemporalConvNet
-
 
 class ConvLSTM01(nn.Module):
 
@@ -394,107 +392,6 @@ class MLP(nn.Module):
 
         return  scores
 
-class ConvGRU(nn.Module):
-
-    def __init__(self, bi_dir):
-        super(ConvGRU, self).__init__()
-        self.n_classes = 5
-        self.hidden_dim = 256
-        self.bi_dir = bi_dir
-        self.rnn_type = 'gru'
-        self.num_layers = 1
-
-        self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=3)
-        self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=3)
-        self.pool1 = nn.MaxPool1d(2, stride=6)
-
-        self.conv3 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
-        self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
-        self.pool2 = nn.MaxPool1d(2, stride=2)
-
-        # self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
-        # self.pool3 = nn.MaxPool1d(2, stride=1)
-
-        self.linear1 = nn.Linear(1728, 128)
-
-        self.dropout1 = nn.Dropout(0.4)
-        self.dropout2 = nn.Dropout(0.7)
-
-        # LL2:   128  -->  classes
-        # self.linear2 = nn.Linear(128, self.n_classes)
-
-        # LSTM
-        self.lstm_in_dim = 128
-        self.gru = nn.GRU(self.lstm_in_dim, self.hidden_dim, bidirectional=self.bi_dir)
-
-        # linear
-        self.hidden2label1 = nn.Linear(self.hidden_dim * (1 + int(self.bi_dir)), self.n_classes)
-
-    def init_hidden(self, batch_size):
-        if self.rnn_type == 'gru':
-            return torch.zeros(self.num_layers, 1, self.hidden_dim)
-        elif self.rnn_type == 'lstm':
-            return (
-                torch.zeros(self.num_layers * (1 + int(self.bi_dir)), batch_size, self.hidden_dim),
-                torch.zeros(self.num_layers * (1 + int(self.bi_dir)), batch_size, self.hidden_dim))
-
-    def forward(self, x, gru_hidden):
-
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.pool1(x)
-        x = self.dropout1(x)
-
-        x = self.conv3(x)
-        x = F.relu(x)
-        x = self.conv4(x)
-        x = F.relu(x)
-        x = self.pool2(x)
-        x = self.dropout1(x)
-
-        x = x.reshape(x.size(0), x.size(1) * x.size(2))
-        # print(x.shape)  # 24'064
-
-        x = self.linear1(x)
-        x = F.relu(x)
-
-        # Droput
-        x = self.dropout1(x)
-
-
-
-        cnn_x = F.relu(x)
-        # print('cnn_x', cnn_x.shape)
-        # LSTM
-        g_seq = cnn_x.unsqueeze(dim=1)
-        # print('g_seq', g_seq.shape)
-
-        lstm_out, gru_hidden = self.gru(g_seq, gru_hidden)
-
-        # Droput
-        lstm_out = self.dropout2(lstm_out)
-
-        # linear
-        cnn_lstm_out = self.hidden2label1(lstm_out)  # activations are implicit
-
-        # output
-        scores = cnn_lstm_out
-
-        return scores, gru_hidden
-
-
-
-
-
-        # LL2:   128  -->  classes
-        # x = self.linear2(x)
-
-        # return x
-
-
-
 class ConvLSTM(nn.Module):
 
     def __init__(self, bi_dir):
@@ -502,8 +399,6 @@ class ConvLSTM(nn.Module):
         self.n_classes = 5
         self.hidden_dim = 256
         self.bi_dir = bi_dir
-        self.num_layers = 1
-        self.rnn_type = 'lstm'
 
         self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=3)
         self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=3)
@@ -530,14 +425,6 @@ class ConvLSTM(nn.Module):
 
         # linear
         self.hidden2label1 = nn.Linear(self.hidden_dim * (1 + int(self.bi_dir)), self.n_classes)
-
-    # def init_hidden(self, batch_size):
-    #     if self.rnn_type == 'gru':
-    #         return torch.zeros(self.num_layers, batch_size, self.hidden_dim)
-    #     elif self.rnn_type == 'lstm':
-    #         return (
-    #             torch.zeros(self.num_layers * (1 + int(self.bi_dir)), batch_size, self.hidden_dim),
-    #             torch.zeros(self.num_layers * (1 + int(self.bi_dir)), batch_size, self.hidden_dim))
 
     def forward(self, x, h_init, c_init):
 
@@ -830,95 +717,6 @@ class ConvSimpleBest(nn.Module):
         x = F.relu(x)
         x = self.pool_avg(x)
         x = self.dropout1(x)
-
-        x = x.reshape(x.size(0), x.size(1) * x.size(2))
-        # print(x.shape)  # 24'064
-
-        x = self.linear1(x)
-        x = F.relu(x)
-
-        # Droput
-        x = self.dropout1(x)
-
-        # LL2:   128  -->  classes
-        x = self.linear2(x)
-
-        return x
-
-
-
-class TCN00(nn.Module):
-    def __init__(self):
-        super(TCN00, self).__init__()
-        input_size = 1
-        output_size = 5
-        num_channels = [16]*4
-        kernel_size = 10
-        dropout = 0.2
-
-        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout=dropout)
-        self.linear = nn.Linear(num_channels[-1], output_size)
-        self.sig = nn.Sigmoid()
-
-    def forward(self, x):
-        # x needs to have dimension (N, C, L) in order to be passed into CNN
-        output = self.tcn(x).transpose(1, 2)
-        output = self.linear(output).double()
-        return output # self.sig(output)
-
-class TempConv(nn.Module):
-
-    def __init__(self):
-        super(TempConv, self).__init__()
-        self.n_classes = 5
-        self.conv1 = TemporalConvNet(1, 32, kernel_size=10)
-        self.conv2 = TemporalConvNet(32, 32, kernel_size=10)
-        self.pool1 = nn.AvgPool1d(2, stride=6)
-
-        self.conv3 = TemporalConvNet(32, 64, kernel_size=3)
-        self.conv4 = TemporalConvNet(64, 64, kernel_size=3)
-        self.pool2 = nn.AvgPool1d(2, stride=2)
-
-        self.conv5 = TemporalConvNet(64, 256, kernel_size=3)
-        self.conv6 = TemporalConvNet(256, 256, kernel_size=3)
-        self.pool_avg = nn.AvgPool1d(2)
-
-        self.linear1 = nn.Linear(3328, 128)
-
-        self.dropout1 = nn.Dropout(0.02)
-
-        # LL2:   128  -->  classes
-        self.linear2 = nn.Linear(128, self.n_classes)
-
-    def forward(self, x):
-        # print(x.shape)
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.pool1(x)
-        # x = self.dropout1(x)
-
-        x = self.conv3(x)
-        x = F.relu(x)
-        x = self.conv4(x)
-        x = F.relu(x)
-        x = self.pool2(x)
-        # x = self.dropout1(x)
-
-        # x = self.conv4(x)
-        # x = F.relu(x)
-        # x = self.conv4(x)
-        # x = F.relu(x)
-        # x = self.pool2(x)
-        # x = self.dropout1(x)
-
-        x = self.conv5(x)
-        x = F.relu(x)
-        x = self.conv6(x)
-        x = F.relu(x)
-        x = self.pool_avg(x)
-        # x = self.dropout1(x)
 
         x = x.reshape(x.size(0), x.size(1) * x.size(2))
         # print(x.shape)  # 24'064

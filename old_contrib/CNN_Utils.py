@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import time
 import numpy as np
-
+import sys
 
 class CNN_Utils():
     def __init__(self, my_lr, batch_size, epochs):
@@ -98,6 +98,10 @@ class CNN_Utils():
                 train_x_batch = train_x[i:i + self.batch_size]
                 train_y_batch = train_y[i:i + self.batch_size]
 
+                # print(train_x_batch.shape)
+                # print(train_y_batch.shape)
+                # sys.exit()
+
                 train_x_batch = torch.from_numpy(train_x_batch).to(device)
                 train_y_batch = torch.from_numpy(train_y_batch).view(-1).to(device)
 
@@ -177,7 +181,7 @@ class CNN_Utils():
                 test_y_batch = test_y[i:i + self.batch_size]
 
                 test_x_batch = torch.from_numpy(test_x_batch).to(device)
-                test_y_batch = torch.from_numpy(test_y_batch).view(-1).to(device)
+                test_y_batch = torch.from_numpy(test_y_batch[:,0]).view(-1).to(device)
 
                 m_input = test_x_batch
                 outputs = net(m_input.float())
@@ -244,7 +248,7 @@ class CNN_Utils():
                 train_y_batch = train_y[i:i + self.batch_size]
 
                 train_x_batch = torch.from_numpy(train_x_batch).to(device)
-                train_y_batch = torch.from_numpy(train_y_batch).view(-1).to(device)
+                train_y_batch = torch.from_numpy(train_y_batch[:,0]).view(-1).to(device)
 
                 # train_x_batch = (train_x_batch - mean)/std
                 outputs = net(train_x_batch.float())
