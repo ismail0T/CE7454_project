@@ -10,11 +10,13 @@ from torch import optim
 from NN_Utils import *
 from my_models import *
 from dataloader import SeqDataLoader
-from Utils import *
+# from Utils_Old import *
 import time, sys
 import copy
 import time
 import math
+
+from old_contrib.Utils_Old import prep_train_validate_data_CV_seq2seq
 
 
 def asMinutes(s):
@@ -32,7 +34,7 @@ def timeSince(since, percent):
 
 
 
-data_dir = "../data_2013/new"
+data_dir = "../../data_2013/traindata_eeg"
 
 classes = ['W', 'N1', 'N2', 'N3', 'REM']
 n_classes = len(classes)
@@ -43,81 +45,81 @@ learning_rate = 0.001
 
 device = torch.device("cuda:1")
 
-def run_experiment_cross_validation():
-    CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
-    train_history_over_CV = []
-    val_history_over_CV = []
-    confusion_matrix_train_CV = []
-    confusion_matrix_test_CV = []
-    num_folds = 3
-
-    print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
-
-
-    for fold_id in range(0, num_folds):
-        # Loading Data
-        X_train, y_train, X_test, y_test = prep_train_validate_data_CV_seq2seq(data_dir, fold_id, batch_size, 10, classes)
-        if fold_id == 0:
-            print('X_train Data Shape: ', X_train.shape, '  y_train Data Shape: ', y_train.shape)
-            print('X_test Data Shape:  ', X_test.shape, '   y_test Data Shape:  ', y_test.shape)
-
-            print('\n')
-            # X_train Data Shape:  (5632, 10, 3000)   y_train Data Shape:  (5632, 12)
-            # X_test Data Shape:   (2068, 10, 3000)    y_test Data Shape:   (2068, 12)
-        # sys.exit()
-
-
-
-
-        char2numY = dict(zip(classes, range(len(classes))))
-        # for cl in classes:
-        #     print("__Train ", cl, len(np.where(y_train == char2numY[cl])[0]), " => ",
-        #           len(np.where(y_test == char2numY[cl])[0]))
-
-        print("\nFold <" + str(fold_id + 1) + ">")
-        # Train Data Shape:  (38912, 1, 3000)   Test Data Shape:  (2048, 1, 3000)
-        # Train  W 7305  =>  639
-        # Train  N1 2651  =>  74
-        # Train  N2 16375  =>  860
-        # Train  N3 5270  =>  263
-        # Train  REM 7311  =>  212
-
-        # sys.exit()
-        # model #
-        net = Seq2Seq11()
-        print("Seq2Seq..")
-        if fold_id == 0:
-            display_num_param(net)
-        net = net.to(device)
-
-        train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, False, device)
-        # print('train_history', train_history)
-        # accumulate history for each CV loop, then take average
-        train_history_over_CV.append(train_history)
-        val_history_over_CV.append(validation_history)
-        confusion_matrix_train_CV.append(confusion_matrix_train_list)
-        confusion_matrix_test_CV.append(confusion_matrix_test_list)
-        # print(confusion_matrix_test)
-
-        del net
-
-    print(train_history_over_CV)
-    print(val_history_over_CV)
-
-    confusion_matrix_test_CV_final = confusion_matrix_test_CV[0]
-    for i in range(1, num_folds):
-        confusion_matrix_test_CV_final += confusion_matrix_test_CV[i]
-
-    best_epoch_id = np.argmax(np.asarray(np.matrix(val_history_over_CV).mean(0)).reshape(-1))
-
-    confusion_matrix_test_best = confusion_matrix_test_CV_final[best_epoch_id]
-
-    confusion_matrix_accuracy = (confusion_matrix_test_best.diag().numpy() / confusion_matrix_test_best.sum(1).numpy()) * 100
-    for i, cl in enumerate(classes):
-        print("Acc ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
-
-    plot_CV_history(train_history_over_CV, val_history_over_CV)
-    plot_confusion_matrix(confusion_matrix_test_best.data.numpy(), classes)
+# def run_experiment_cross_validation():
+#     CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
+#     train_history_over_CV = []
+#     val_history_over_CV = []
+#     confusion_matrix_train_CV = []
+#     confusion_matrix_test_CV = []
+#     num_folds = 3
+#
+#     print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
+#
+#
+#     for fold_id in range(0, num_folds):
+#         # Loading Data
+#         X_train, y_train, X_test, y_test = prep_train_validate_data_CV_seq2seq(data_dir, fold_id, batch_size, 10, classes)
+#         if fold_id == 0:
+#             print('X_train Data Shape: ', X_train.shape, '  y_train Data Shape: ', y_train.shape)
+#             print('X_test Data Shape:  ', X_test.shape, '   y_test Data Shape:  ', y_test.shape)
+#
+#             print('\n')
+#             # X_train Data Shape:  (5632, 10, 3000)   y_train Data Shape:  (5632, 12)
+#             # X_test Data Shape:   (2068, 10, 3000)    y_test Data Shape:   (2068, 12)
+#         # sys.exit()
+#
+#
+#
+#
+#         char2numY = dict(zip(classes, range(len(classes))))
+#         # for cl in classes:
+#         #     print("__Train ", cl, len(np.where(y_train == char2numY[cl])[0]), " => ",
+#         #           len(np.where(y_test == char2numY[cl])[0]))
+#
+#         print("\nFold <" + str(fold_id + 1) + ">")
+#         # Train Data Shape:  (38912, 1, 3000)   Test Data Shape:  (2048, 1, 3000)
+#         # Train  W 7305  =>  639
+#         # Train  N1 2651  =>  74
+#         # Train  N2 16375  =>  860
+#         # Train  N3 5270  =>  263
+#         # Train  REM 7311  =>  212
+#
+#         # sys.exit()
+#         # model #
+#         net = Seq2Seq11()
+#         print("Seq2Seq..")
+#         if fold_id == 0:
+#             display_num_param(net)
+#         net = net.to(device)
+#
+#         train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, False, device)
+#         # print('train_history', train_history)
+#         # accumulate history for each CV loop, then take average
+#         train_history_over_CV.append(train_history)
+#         val_history_over_CV.append(validation_history)
+#         confusion_matrix_train_CV.append(confusion_matrix_train_list)
+#         confusion_matrix_test_CV.append(confusion_matrix_test_list)
+#         # print(confusion_matrix_test)
+#
+#         del net
+#
+#     print(train_history_over_CV)
+#     print(val_history_over_CV)
+#
+#     confusion_matrix_test_CV_final = confusion_matrix_test_CV[0]
+#     for i in range(1, num_folds):
+#         confusion_matrix_test_CV_final += confusion_matrix_test_CV[i]
+#
+#     best_epoch_id = np.argmax(np.asarray(np.matrix(val_history_over_CV).mean(0)).reshape(-1))
+#
+#     confusion_matrix_test_best = confusion_matrix_test_CV_final[best_epoch_id]
+#
+#     confusion_matrix_accuracy = (confusion_matrix_test_best.diag().numpy() / confusion_matrix_test_best.sum(1).numpy()) * 100
+#     for i, cl in enumerate(classes):
+#         print("Acc ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
+#
+#     plot_CV_history(train_history_over_CV, val_history_over_CV)
+#     plot_confusion_matrix(confusion_matrix_test_best.data.numpy(), classes)
 # plot_confusion_matrix(cm=tt.data.numpy(), target_names=classes)
 
 
@@ -136,29 +138,29 @@ def run_experiment_cross_validation():
 # batch_size = 64
 # learning_rate = 0.04
 
-def run_experiment_simple_validation000():
-    print(' num_epochs: ', num_epochs)
-    CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
-    X_train, y_train, X_test, y_test = prep_train_validate_data(data_dir, batch_size)
-    print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
-    print('\n')
-
-    # model #
-    bi_dir = True
-    # net = ConvLSTM(bi_dir)
-    enc = Encoder()
-    dec = Decoder()
-    net = Seq2Seq(enc, dec, device)
-    display_num_param(net)
-    net = net.to(device)
-
-    train_history, validation_history = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
-    print('train_history', train_history)
-    print('validation_history', validation_history)
-
-    del net
-
-    plot_one_validation_history(train_history, validation_history)
+# def run_experiment_simple_validation000():
+#     print(' num_epochs: ', num_epochs)
+#     CNNutils = CNN_Utils(learning_rate, batch_size, num_epochs)
+#     X_train, y_train, X_test, y_test = prep_train_validate_data(data_dir, batch_size)
+#     print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
+#     print('\n')
+#
+#     # model #
+#     bi_dir = True
+#     # net = ConvLSTM(bi_dir)
+#     enc = Encoder()
+#     dec = Decoder()
+#     net = Seq2Seq(enc, dec, device)
+#     display_num_param(net)
+#     net = net.to(device)
+#
+#     train_history, validation_history = CNNutils.train_model_conv_lstm(net, X_train, y_train, X_test, y_test, bi_dir, device)
+#     print('train_history', train_history)
+#     print('validation_history', validation_history)
+#
+#     del net
+#
+#     plot_one_validation_history(train_history, validation_history)
 
 
 # run_experiment_simple_validation000()
@@ -169,9 +171,10 @@ class EncoderRNN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
+        self.linear1 = nn.Linear(3000, 256)
 
         # self.embedding = nn.Embedding(input_size, hidden_size)
-        self.gru = nn.GRU(3000, hidden_size)
+        self.gru = nn.GRU(256, hidden_size)
 
     def forward(self, input, hidden):
 
@@ -179,7 +182,10 @@ class EncoderRNN(nn.Module):
         # print('111 input_tensor.shape', input.view(1, 1, -1).shape)
 
         # embedded = self.embedding(input).view(1, 1, -1)
-        output = input.view(1, 1, -1)
+        x = self.linear1(input)
+        x = F.relu(x)
+
+        output = x.view(1, 1, -1)
         output, hidden = self.gru(output, hidden)
         return output, hidden
 
@@ -344,59 +350,49 @@ def trainIters(encoder, decoder, n_iters, print_every=100, plot_every=100, learn
     print_loss_total = 0  # Reset every print_every
     plot_loss_total = 0  # Reset every plot_every
 
-    encoder_optimizer = optim.SGD(encoder.parameters(), lr=learning_rate)
-    decoder_optimizer = optim.SGD(decoder.parameters(), lr=learning_rate)
+
     # training_pairs = [tensorsFromPair(random.choice(pairs))
     #                   for i in range(n_iters)]
-    criterion = nn.NLLLoss()
+    criterion = nn.CrossEntropyLoss()
 
     #     print(len(pairs))
     #     print(len(training_pairs))
-    correct_total = 0
 
-    for iter in range(1, n_iters + 1):
-        input_tensor = torch.Tensor(X_train[iter]).to(device)
-        target_tensor = torch.Tensor(y_train[iter]).long().to(device)
+    for epoch in range(10):
+        encoder_optimizer = optim.SGD(encoder.parameters(), lr=learning_rate)
+        decoder_optimizer = optim.SGD(decoder.parameters(), lr=learning_rate)
+        correct_total = 0
 
-        # specgram = torchaudio.transforms.Spectrogram()(input_tensor)
+        for iter in range(1, n_iters + 1):
+            input_tensor = torch.Tensor(X_train[iter]).to(device)
+            target_tensor = torch.Tensor(y_train[iter]).long().to(device)
 
-        # print("Shape of spectrogram: {}".format(specgram.size()))
-        #
-        # plt.figure()
-        # plt.imshow(specgram.log2()[0, :, :].numpy(), cmap='gray')
-        #
-        # sys.exit()
-        # print('input_tensor.shape', input_tensor.shape)
-        # print(input_tensor.reshape(-1).shape)
-        # print('target_tensor.shape', target_tensor.shape)
-        # print(target_tensor.reshape(-1).shape)
+            loss, correct = train(input_tensor, target_tensor, encoder,
+                         decoder, encoder_optimizer, decoder_optimizer, criterion)
+            print_loss_total += loss
+            plot_loss_total += loss
+            correct_total += correct
+            # sys.exit()
 
-        loss, correct = train(input_tensor, target_tensor, encoder,
-                     decoder, encoder_optimizer, decoder_optimizer, criterion)
-        print_loss_total += loss
-        plot_loss_total += loss
-        correct_total += correct
-        # sys.exit()
+            if iter % print_every == 0:
+                print_loss_avg = print_loss_total / print_every
+                print_loss_total = 0
+                print('%s (%d %d%%) %.4f' % (timeSince(start, iter / n_iters),
+                                             iter, iter / n_iters * 100, print_loss_avg))
+                print(correct, '    ', correct_total, correct_total/(n_iters*10)*100, '%', '\n')
 
-        if iter % print_every == 0:
-            print_loss_avg = print_loss_total / print_every
-            print_loss_total = 0
-            print('%s (%d %d%%) %.4f' % (timeSince(start, iter / n_iters),
-                                         iter, iter / n_iters * 100, print_loss_avg))
-            print(correct, '    ', correct_total, correct_total/(n_iters*10)*100, '%', '\n')
-
-        if iter % plot_every == 0:
-            plot_loss_avg = plot_loss_total / plot_every
-            plot_losses.append(plot_loss_avg)
-            plot_loss_total = 0
+            if iter % plot_every == 0:
+                plot_loss_avg = plot_loss_total / plot_every
+                plot_losses.append(plot_loss_avg)
+                plot_loss_total = 0
 
 
 hidden_size = 256
 encoder1 = EncoderRNN(7, hidden_size).to(device)
 attn_decoder1 = DecoderRNN(hidden_size, 7).to(device)
 
-for i in range(10):
-    trainIters(encoder1, attn_decoder1, 5600, print_every=500)
+
+trainIters(encoder1, attn_decoder1, 5600, print_every=500)
 
 
 

@@ -48,7 +48,7 @@ def run_experiment_cross_validation():
 
         # model #
         bi_dir = False
-        net = ConvGRU(bi_dir)
+        net = MyLSTM(bi_dir)
         if fold_id == 0:
             display_num_param(net)
         net = net.to(device)

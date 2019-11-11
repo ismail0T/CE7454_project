@@ -300,18 +300,7 @@ class MyLSTM(nn.Module):
         self.hidden_dim = 256
         self.bi_dir = bi_dir
 
-        self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=2)
-        self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=2)
-        self.pool1 = nn.MaxPool1d(2, stride=4)
-
-        self.conv3 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
-        self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
-        self.pool2 = nn.MaxPool1d(2, stride=2)
-
-        # self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
-        # self.pool3 = nn.MaxPool1d(2, stride=1)
-
-        self.linear1 = nn.Linear(576, 128)
+        self.linear1 = nn.Linear(3000, 256)
 
         self.dropout1 = nn.Dropout(0.4)
         self.dropout2 = nn.Dropout(0.7)
@@ -320,41 +309,19 @@ class MyLSTM(nn.Module):
         # self.linear2 = nn.Linear(128, self.n_classes)
 
         # LSTM
-        self.lstm_in_dim = 600
+        self.lstm_in_dim = 256
         self.lstm = nn.LSTM(self.lstm_in_dim, self.hidden_dim, bidirectional=self.bi_dir)
 
         # linear
         self.hidden2label1 = nn.Linear(self.hidden_dim * (1 + int(self.bi_dir)), self.n_classes)
 
     def forward(self, x, h_init, c_init):
-
-        # x = self.conv1(x)
-        # x = F.relu(x)
-        # x = self.conv2(x)
-        # x = F.relu(x)
-        # x = self.pool1(x)
-        # x = self.dropout1(x)
-        #
-        # x = self.conv3(x)
-        # x = F.relu(x)
-        # x = self.conv4(x)
-        # x = F.relu(x)
-        # x = self.pool2(x)
+        x = self.linear1(x)
+        x = F.relu(x)
         # x = self.dropout1(x)
 
         x = x.reshape(x.size(0), x.size(1) * x.size(2))
-        # print(x.shape)  # 24'064
 
-        # x = self.linear1(x)
-        # x = F.relu(x)
-        #
-        # # Droput
-        # x = self.dropout1(x)
-
-
-
-        # cnn_x = F.relu(x)
-        # print('cnn_x', cnn_x.shape)
         # LSTM
         g_seq = x.unsqueeze(dim=1)
         # print('g_seq', g_seq.shape)
@@ -777,10 +744,11 @@ class ConvSimple(nn.Module):
 
         return x
 
-class ConvSimpleBest(nn.Module):
+
+class ConvSimpleSOTA(nn.Module):
 
     def __init__(self):
-        super(ConvSimpleBest, self).__init__()
+        super(ConvSimpleSOTA, self).__init__()
         self.n_classes = 5
         self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=3)
         self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=3)
@@ -796,7 +764,7 @@ class ConvSimpleBest(nn.Module):
 
         self.linear1 = nn.Linear(3328, 128)
 
-        self.dropout1 = nn.Dropout(0.02)
+        self.dropout1 = nn.Dropout(0.2)
 
         # LL2:   128  -->  classes
         self.linear2 = nn.Linear(128, self.n_classes)
@@ -817,6 +785,76 @@ class ConvSimpleBest(nn.Module):
         x = self.pool2(x)
         x = self.dropout1(x)
 
+        x = self.conv5(x)
+        x = F.relu(x)
+        x = self.conv6(x)
+        x = F.relu(x)
+        x = self.pool_avg(x)
+        x = self.dropout1(x)
+
+        x = x.reshape(x.size(0), x.size(1) * x.size(2))
+        # print(x.shape)  # 24'064
+
+        x = self.linear1(x)
+        x = F.relu(x)
+
+        # Droput
+        x = self.dropout1(x)
+
+        # LL2:   128  -->  classes
+        x = self.linear2(x)
+
+        return x
+
+
+class ConvSimpleBest(nn.Module):
+
+    def __init__(self):
+        super(ConvSimpleBest, self).__init__()
+        self.n_classes = 5
+        self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=3)
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=3)
+        self.pool1 = nn.AvgPool1d(2, stride=6)
+        self.bn1 = nn.BatchNorm1d(num_features=32)
+
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
+        self.pool2 = nn.AvgPool1d(2, stride=2)
+        self.bn2 = nn.BatchNorm1d(num_features=64)
+
+        self.conv5 = nn.Conv1d(64, 256, kernel_size=3, padding=1)
+        self.conv6 = nn.Conv1d(256, 256, kernel_size=3, padding=1)
+        self.pool_avg = nn.AvgPool1d(2)
+        self.bn3 = nn.BatchNorm1d(num_features=256)
+
+
+        self.linear1 = nn.Linear(3328, 128)
+
+        self.dropout1 = nn.Dropout(0.02)
+
+        # LL2:   128  -->  classes
+        self.linear2 = nn.Linear(128, self.n_classes)
+
+    def forward(self, x):
+        # print(x.shape)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = self.pool1(x)
+        # x = self.dropout1(x)
+
+        x = self.conv3(x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.pool2(x)
+        # x = self.dropout1(x)
+
         # x = self.conv4(x)
         # x = F.relu(x)
         # x = self.conv4(x)
@@ -825,11 +863,13 @@ class ConvSimpleBest(nn.Module):
         # x = self.dropout1(x)
 
         x = self.conv5(x)
+        x = self.bn3(x)
         x = F.relu(x)
         x = self.conv6(x)
+        x = self.bn3(x)
         x = F.relu(x)
         x = self.pool_avg(x)
-        x = self.dropout1(x)
+        # x = self.dropout1(x)
 
         x = x.reshape(x.size(0), x.size(1) * x.size(2))
         # print(x.shape)  # 24'064

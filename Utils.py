@@ -3,9 +3,142 @@ import numpy as np
 from itertools import chain, repeat
 import itertools
 
+import torch
+import os
+from NN_Utils import NN_Utils
+from dataloader_v2 import SeqDataLoader
+import copy
+import re, datetime, operator, logging, sys
+import numpy as np
+from collections import namedtuple
 
 
+classes = ['W', 'N1', 'N2', 'N3', 'REM']
+n_classes = len(classes)
+path_to_saved_models = "saved_models"
 
+
+def run_experiment_cross_validation(model, data_dir, num_folds, num_epochs, learning_rate, batch_size, device, do_balance=False, sampling=0, do_print=True):
+    MyNNutils = NN_Utils(learning_rate, batch_size, num_epochs)
+    train_history_over_CV = []
+    val_history_over_CV = []
+    confusion_matrix_train_CV = []
+    confusion_matrix_test_CV = []
+
+    print('num_folds: ', num_folds, ' num_epochs: ', num_epochs)
+    init_state = copy.deepcopy(model.state_dict())
+    best_accuracy = 0
+
+    for fold_id in range(0, num_folds):
+        model.load_state_dict(init_state)
+
+        if sampling == 0:  # no modification
+            X_train, y_train, X_test, y_test = prep_train_validate_data_no_smote(data_dir, num_folds, fold_id, batch_size)
+        elif sampling == 1:  # over-sampling
+            X_train, y_train, X_test, y_test = prep_train_validate_data_CV(data_dir, fold_id, batch_size)
+        else:  # under-sampling
+            X_train, y_train, X_test, y_test = prep_train_validate_data_CV_RUS(data_dir, fold_id, batch_size)
+
+        if do_print:
+            if fold_id == 0:
+                print('Train Data Shape: ', X_train.shape, '  Test Data Shape: ', X_test.shape)
+                print('\n')
+
+            char2numY = dict(zip(classes, range(len(classes))))
+            for cl in classes:
+                print("__Train ", cl, len(np.where(y_train == char2numY[cl])[0]), " => ",
+                      len(np.where(y_test == char2numY[cl])[0]))
+
+        print("\nFold <" + str(fold_id + 1) + ">", get_curr_time())
+
+        # model #
+        net = model
+        if fold_id == 0:
+            display_num_param(net)
+        net = net.to(device)
+
+        # train_history = validation_history = [[], []]
+        # confusion_matrix_train_list = confusion_matrix_test_list = [[], [], [], []]
+        if model.__class__.__name__ == "MLP" or model.__class__.__name__ == "ConvSimple" or model.__class__.__name__ == 'ConvBatchNorm':
+            train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list = MyNNutils.train_model_cnn(
+                net, X_train, y_train, X_test, y_test, device, do_balance=do_balance, do_print=do_print)
+        else:
+            train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list = MyNNutils.train_model_conv_lstm(
+                net, X_train, y_train, X_test, y_test, False, device, do_balance=do_balance, do_print=do_print)
+
+        # accumulate history for each CV loop, then take average
+        train_history_over_CV.append(train_history)
+        val_history_over_CV.append(validation_history)
+        confusion_matrix_train_CV.append(confusion_matrix_train_list)
+        confusion_matrix_test_CV.append(confusion_matrix_test_list)
+
+        curr_acc = max(validation_history)
+        if curr_acc > best_accuracy:
+            best_accuracy = best_accuracy
+            torch.save(net, os.path.join(path_to_saved_models,model.__class__.__name__ + '_best.pt'))
+
+        del net
+
+    if do_print:
+        print(train_history_over_CV)
+        print(val_history_over_CV)
+        print('\n')
+
+    # print(confusion_matrix_test_CV.shape)
+    best_epoch_id = np.argmax(np.asarray(np.matrix(val_history_over_CV).mean(0)).reshape(-1))
+    confusion_matrix_test_best = confusion_matrix_test_CV[0][best_epoch_id]
+    for i in range(1, num_folds):
+        confusion_matrix_test_best += confusion_matrix_test_CV[i][best_epoch_id]
+
+    return train_history_over_CV, val_history_over_CV, confusion_matrix_test_best
+
+
+def prep_train_validate_data_no_smote(data_dir, num_folds, fold_id, batch_size):
+    data_loader = SeqDataLoader(data_dir, num_folds, fold_id, classes=5)
+
+    X_train, y_train, X_test, y_test = data_loader.load_data()
+
+    X_train = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
+    y_train = y_train.reshape(y_train.shape[0], 1)
+    X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+    y_test = y_test.reshape(y_test.shape[0], 1)
+
+    total_train_samples = X_train.shape[0]
+    classes = ['W', 'N1', 'N2', 'N3', 'REM']
+    classes_distribution = []
+    char2numY = dict(zip(classes, range(len(classes))))
+    for cl in classes:
+        classes_distribution.append(len(np.where(y_train == char2numY[cl])[0]))
+
+    # print(y_train.shape[0])
+    # print(classes_distribution)
+    temp = np.copy(classes_distribution)
+    temp.sort()
+    second_max = temp[-2]
+    nb_samples_to_remove = classes_distribution[2] - second_max
+    nb_samples_removed = 0
+    indexes_to_remove = []
+
+    for i in range(total_train_samples):
+        if y_train[i] == 2 and nb_samples_removed < nb_samples_to_remove:
+            indexes_to_remove.append(i)
+            nb_samples_removed +=1
+
+    # X_train = np.delete(X_train, indexes_to_remove, 0)
+    # y_train = np.delete(y_train, indexes_to_remove, 0)
+
+
+    # print(nb_samples_to_remove, len(indexes_to_remove))
+
+    total_training_length = (X_train.shape[0] // batch_size) * batch_size
+    total_test_length = (X_test.shape[0] // batch_size) * batch_size
+
+    X_train = X_train[:total_training_length]
+    y_train = y_train[:total_training_length]
+    X_test = X_test[:total_test_length]
+    y_test = y_test[:total_test_length]
+
+    return X_train, y_train, X_test, y_test
 
 def display_num_param(net):
     nb_param = 0
@@ -51,6 +184,40 @@ def prep_train_validate_data_CV(data_dir, fold_id, batch_size, seq_len=1):
 
     return X_train, y_train, X_test, y_test
 
+def prep_train_validate_data_CV_RUS(data_dir, fold_id, batch_size, seq_len=1):
+    max_time_step = 10
+
+    x = np.load(data_dir + "/trainData_fpz-cz_RUS_all_10s_f" + str(fold_id) +".npz")
+    X_train = x["x"]
+    y_train = x["y"]
+
+    x2 = np.load(data_dir + "/trainData_fpz-cz_RUS_all_10s_f" + str(fold_id) +"_TEST.npz")
+    X_test = x2["x"]
+    y_test = x2["y"]
+
+    X_train = X_train[:(X_train.shape[0] // max_time_step) * max_time_step, :]
+    y_train = y_train[:(X_train.shape[0] // max_time_step) * max_time_step]
+
+    # shuffle training data_2013
+    permute = np.random.permutation(len(y_train))
+    X_train = np.asarray(X_train)
+    X_train = X_train[permute]
+    y_train = y_train[permute]
+
+    y_train = np.array(list(chain.from_iterable(zip(*repeat(y_train, seq_len)))))
+    y_test = np.array(list(chain.from_iterable(zip(*repeat(y_test, seq_len)))))
+
+    X_train = np.reshape(X_train, [-1, 1, 3000//seq_len])
+    y_train = np.reshape(y_train, [-1, 1])
+    X_test = np.reshape(X_test, [-1, 1, 3000//seq_len])
+    y_test = np.reshape(y_test, [-1, 1])
+
+    X_train = X_train[:(X_train.shape[0] // batch_size) * batch_size, :]
+    y_train = y_train[:(X_train.shape[0] // batch_size) * batch_size]
+    X_test = X_test[:(X_test.shape[0] // batch_size) * batch_size, :]
+    y_test = y_test[:(y_test.shape[0] // batch_size) * batch_size]
+
+    return X_train, y_train, X_test, y_test
 
 def plot_CV_history(train_history_over_CV, val_history_over_CV):
     one_fold = np.copy(train_history_over_CV[0])
@@ -61,35 +228,63 @@ def plot_CV_history(train_history_over_CV, val_history_over_CV):
 
     max_val = max(test)
     print("Epoch:", np.argmax(test)+1, " max_acc=", max_val)
+    xmax = np.argmax(test)
+    ymax = test[xmax]
+
 
     plt.figure(figsize=(18, 6))
     plt.subplot(1, 2, 1)
+    plt.plot(xmax, ymax, 'bo', label="_nolegend_")
+
+    axes = plt.gca()
+    axes.set_ylim([0, 100])
+
     plt.plot(range(1, num_epoch + 1), train)
     plt.plot(range(1, num_epoch + 1), test)
-    plt.legend(['Average Train Accuracy', 'Average Test Accuracy'], loc='upper right', prop={'size': 12})
+    plt.legend(['Average Train Accuracy', 'Average Test Accuracy'], loc='lower right', prop={'size': 12})
     plt.suptitle('Cross Validation Performance', fontsize=15.0, y=1.08, fontweight='bold')
     plt.title('Best accuracy: ' + '{0:.2f}'.format(max_val) + ' % (epoch: ' + str(np.argmax(test)+1) + ')', fontsize=13.0,
               y=1.08, fontweight='bold')
-
+    plt.ylabel('Accuracy %')
+    plt.xlabel('Epoch')
     plt.show()
 
 
-def plot_one_validation_history(train_history, val_history):
-    num_epoch = len(train_history)
+def plot_one_validation_history(mlp, conv, convBatch, convLSTM):
+    num_epoch = len(mlp)
+
+    mlp = np.asarray(np.matrix(mlp).mean(0)).reshape(-1)
+    conv = np.asarray(np.matrix(conv).mean(0)).reshape(-1)
+    convBatch = np.asarray(np.matrix(convBatch).mean(0)).reshape(-1)
+    convLSTM = np.asarray(np.matrix(convLSTM).mean(0)).reshape(-1)
+
+    xmax = np.argmax(mlp)
+    ymax = mlp[xmax]
 
 
-    max_val = max(val_history)
+    # print(max_val, ymax, xmax)
+
+    # best_epoch_mlp = np.argmax(mlp_mean)
 
     # print(num_epoch)
-    plt.figure(figsize=(18, 6))
-    plt.subplot(1, 2, 1)
-    plt.plot(range(1, num_epoch + 1), train_history)
-    plt.plot(range(1, num_epoch + 1), val_history)
-    plt.legend(['Train Accuracy', 'Test Accuracy'], loc='upper right', prop={'size': 12})
-    plt.suptitle('Global Performance', fontsize=15.0, y=1.08, fontweight='bold')
-    plt.title('Best accuracy: ' + '{0:.2f}'.format(max_val) + ' % (epoch: ' + str(np.argmax(val_history)) + ')', fontsize=13.0,
-              y=1.08, fontweight='bold')
+    plt.figure(figsize=(16, 6))
+    plt.plot(np.argmax(mlp), mlp[np.argmax(mlp)], 'bo', label="_nolegend_")
+    plt.plot(np.argmax(conv), conv[np.argmax(conv)], 'yo', label="_nolegend_")
+    plt.plot(np.argmax(convBatch), convBatch[np.argmax(convBatch)], 'go', label="_nolegend_")
+    plt.plot(np.argmax(convLSTM), convLSTM[np.argmax(convLSTM)], 'ro', label="_nolegend_")
 
+    axes = plt.gca()
+    axes.set_ylim([0, 100])
+
+    plt.plot(range(1, num_epoch + 1), mlp)
+    plt.plot(range(1, num_epoch + 1), conv)
+    plt.plot(range(1, num_epoch + 1), convBatch)
+    plt.plot(range(1, num_epoch + 1), convLSTM)
+    plt.legend(['MLP', 'Conv1D', 'ConvBatchNorm', 'ConvLSTM'], loc='lower right', prop={'size': 12})
+
+    plt.title('Models Accuracy for TestSet')
+    plt.ylabel('Accuracy %')
+    plt.xlabel('Epoch')
     plt.show()
 
 
@@ -143,9 +338,14 @@ def print_confusion_matrix_accuracy(confusion_matrix_test_best, classes):
     for i, cl in enumerate(classes):
         print("Acc ", cl, "{0:.2f}".format(confusion_matrix_accuracy[i]), '%')
 
-import re, datetime, operator, logging, sys
-import numpy as np
-from collections import namedtuple
+
+def get_curr_time():
+    from datetime import datetime
+    now = datetime.now()
+    return now.strftime("%H:%M:%S")
+
+
+
 
 EVENT_CHANNEL = 'EDF Annotations'
 log = logging.getLogger(__name__)

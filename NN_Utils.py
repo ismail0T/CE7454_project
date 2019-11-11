@@ -160,8 +160,7 @@ class NN_Utils():
 
         return train_history, test_history, confusion_matrix_train, confusion_matrix_test
 
-
-    def test_model_conv_lstm(self, net, test_x, test_y, bi_dir, device, confusion_matrix_test):
+    def test_model_conv_lstm(self, net, test_x, test_y, bi_dir, device, confusion_matrix_test, do_print=True):
 
         net.eval()
         with torch.no_grad():
@@ -207,7 +206,8 @@ class NN_Utils():
 
         acc_test = (correct / total) * 100
 
-        print('Test Accuracy: {} %'.format(acc_test))
+        if do_print:
+            print('Test Accuracy: {} %'.format(acc_test))
 
         # Confusion matrix
         # print("Test Confusion matrix ")
@@ -219,9 +219,14 @@ class NN_Utils():
         # Test the model
         return acc_test, confusion_matrix_test
 
-    def train_model_conv_lstm(self, net, train_x, train_y, test_x, test_y, bi_dir, device):
+    def train_model_conv_lstm(self, net, train_x, train_y, test_x, test_y, bi_dir, device, do_balance=False, do_print=True):
         lr = self.learning_rate
         criterion = nn.CrossEntropyLoss()
+        if do_balance:
+            weights = [0.5, 0.5, 1.0, 0.5, 0.5]
+            class_weights = torch.FloatTensor(weights).to(device)
+            criterion = nn.CrossEntropyLoss(weight=class_weights)
+
         start = time.time()
 
         train_history = []
@@ -229,13 +234,13 @@ class NN_Utils():
         num_lstm_layers = 1
         hidden_dim_of_lstm1 = 256
 
-        confusion_matrix_train = torch.zeros(5, 5, dtype=torch.int32)
-        confusion_matrix_test = torch.zeros(5, 5, dtype=torch.int32)
+        confusion_matrix_train_list = []
+        confusion_matrix_test_list = []
 
         for epoch in range(1, self.epochs+1):
             net.train()
             if not epoch % 10:
-                lr = lr / 1.5
+                lr = lr / 1.2
 
             optimizer = torch.optim.SGD(net.parameters(), lr=lr)
 
@@ -244,6 +249,8 @@ class NN_Utils():
             acc_list = []
             correct_all = 0
             total_all = 0
+            confusion_matrix_train = torch.zeros(5, 5, dtype=torch.int32)
+            confusion_matrix_test = torch.zeros(5, 5, dtype=torch.int32)
 
             for i in range(0, train_x.shape[0], self.batch_size):
                 train_x_batch = train_x[i:i + self.batch_size]
@@ -257,8 +264,7 @@ class NN_Utils():
                 train_y_batch = torch.from_numpy(train_y_batch).view(-1).to(device)
 
                 # initial hidden states
-                h = torch.zeros((1 + int(bi_dir)) * num_lstm_layers, 1,
-                                hidden_dim_of_lstm1)  # if bi_dir=True, first dimension is 2 for bi-directional
+                h = torch.zeros((1 + int(bi_dir)) * num_lstm_layers, 1, hidden_dim_of_lstm1)  # if bi_dir=True, first dimension is 2 for bi-directional
                 c = torch.zeros((1 + int(bi_dir)) * num_lstm_layers, 1, hidden_dim_of_lstm1)
 
                 h = h.to(device)
@@ -303,17 +309,21 @@ class NN_Utils():
             acc_train = (correct_all / total_all) * 100
 
             train_history.append(acc_train)
-            print('Epoch [{}/{}]'.format(epoch, self.epochs), ", Accuracy : ", str((correct_all / total_all) * 100))
+            if do_print:
+                print('Epoch [{}/{}]'.format(epoch, self.epochs), ", Accuracy : ", str((correct_all / total_all) * 100))
 
             # Test the model
-            acc_test, confusion_matrix_test = self.test_model_conv_lstm(net, test_x, test_y, bi_dir, device, confusion_matrix_test)
+            acc_test, confusion_matrix_test = self.test_model_conv_lstm(net, test_x, test_y, bi_dir, device, confusion_matrix_test, do_print=do_print)
             test_history.append(acc_test)
-            print("\n")
+            if do_print:
+                print("\n")
 
+            confusion_matrix_train_list.append(confusion_matrix_train)
+            confusion_matrix_test_list.append(confusion_matrix_test)
 
-        return train_history, test_history, confusion_matrix_train, confusion_matrix_test
+        return train_history, test_history, confusion_matrix_train_list, confusion_matrix_test_list
 
-    def test_model_cnn(self, net, test_x, test_y, device, confusion_matrix_test):
+    def test_model_cnn(self, net, test_x, test_y, device, confusion_matrix_test, do_print=True):
 
         net.eval()
         with torch.no_grad():
@@ -347,14 +357,19 @@ class NN_Utils():
                     confusion_matrix_test[tl, pl] = confusion_matrix_test[tl, pl] + 1
 
         acc_test = (correct / total) * 100
-        print('Test Accuracy: {} %'.format(acc_test))
+        if do_print:
+            print('Test Accuracy: {} %'.format(acc_test))
 
         return acc_test, confusion_matrix_test
 
-    def train_model_cnn(self, net, train_x, train_y, test_x, test_y, device):
+    def train_model_cnn(self, net, train_x, train_y, test_x, test_y, device, do_balance=False, do_print=True):
         lr = self.learning_rate
         criterion = nn.CrossEntropyLoss()
-        start = time.time()
+
+        if do_balance:
+            weights = [0.5, 0.5, 1.0, 0.5, 0.5]
+            class_weights = torch.FloatTensor(weights).to(device)
+            criterion = nn.CrossEntropyLoss(weight=class_weights)
 
         train_history = []
         test_history = []
@@ -420,12 +435,14 @@ class NN_Utils():
             acc_train = (correct_all / total_all) * 100
 
             train_history.append(acc_train)
-            print('Epoch [{}/{}]'.format(epoch, self.epochs), ", Accuracy : ", str((correct_all / total_all) * 100))
+            if do_print:
+                print('Epoch [{}/{}]'.format(epoch, self.epochs), ", Accuracy : ", str((correct_all / total_all) * 100))
 
             # Test the model
-            acc_test, confusion_matrix_test = self.test_model_cnn(net, test_x, test_y, device, confusion_matrix_test)
+            acc_test, confusion_matrix_test = self.test_model_cnn(net, test_x, test_y, device, confusion_matrix_test, do_print=do_print)
             test_history.append(acc_test)
-            print("\n")
+            if do_print:
+                print("\n")
 
             confusion_matrix_train_list.append(confusion_matrix_train)
             confusion_matrix_test_list.append(confusion_matrix_test)
