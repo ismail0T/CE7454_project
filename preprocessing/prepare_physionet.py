@@ -1,16 +1,9 @@
-'''
-https://github.com/akaraspt/deepsleepnet
-Copyright 2017 Akara Supratak and Hao Dong.  All rights reserved.
-'''
-
-import argparse
 import glob
 import math
 import ntpath
 import os
 import shutil
-import urllib
-#import urllib2
+import argparse
 
 from datetime import datetime
 
@@ -65,13 +58,14 @@ EPOCH_SEC_SIZE = 30
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", type=str, default="/home/ismail/Dev/data_2013",
+    parser.add_argument("--data_dir", type=str, default="E:/data_2013",
                         help="File path to the CSV or NPY file that contains walking data.")
-    parser.add_argument("--output_dir", type=str, default="/home/ismail/Dev/data_2013/EOG_horizontal",
+    parser.add_argument("--output_dir", type=str, default="E:/data_2013_output/eeg_fpz_cz",
                         help="Directory where to save outputs.")
-    parser.add_argument("--select_ch", type=str, default="EOG horizontal",
+    parser.add_argument("--select_ch", type=str, default="EEG Fpz-Cz",
                         help="File path to the trained model used to estimate walking speeds.")
     args = parser.parse_args()
+    
 
     # Output dir
     if not os.path.exists(args.output_dir):
@@ -82,7 +76,7 @@ def main():
 
     # Select channel
     select_ch = args.select_ch
-
+    
     # Read raw and annotation EDF files
     psg_fnames = glob.glob(os.path.join(args.data_dir, "*PSG.edf"))
     ann_fnames = glob.glob(os.path.join(args.data_dir, "*Hypnogram.edf"))
@@ -92,11 +86,6 @@ def main():
     ann_fnames = np.asarray(ann_fnames)
 
     for i in range(len(psg_fnames)):
-        # if not "ST7171J0-PSG.edf" in psg_fnames[i]:
-        #     continue
-        # i = ii+80
-        # if i >= len(psg_fnames):
-        #     break
 
         raw = read_raw_edf(psg_fnames[i], preload=True, stim_channel=None)
         sampling_rate = raw.info['sfreq']
@@ -172,11 +161,8 @@ def main():
             extra_idx = np.setdiff1d(label_idx, select_idx)
             # Trim the tail
             if np.all(extra_idx > select_idx[-1]):
-                # n_trims = len(select_idx) % int(EPOCH_SEC_SIZE * sampling_rate)
-                # n_label_trims = int(math.ceil(n_trims / (EPOCH_SEC_SIZE * sampling_rate)))
                 n_label_trims = int(math.ceil(len(extra_idx) / (EPOCH_SEC_SIZE * sampling_rate)))
                 if n_label_trims!=0:
-                    # select_idx = select_idx[:-n_trims]
                     labels = labels[:-n_label_trims]
             print("after remove extra labels: {}, {}".format(select_idx.shape, labels.shape))
 
