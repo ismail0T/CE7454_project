@@ -62,6 +62,13 @@ def run_experiment_cross_validation(model, data_dir, num_folds, num_epochs, lear
         if model.__class__.__name__ == "MLP" or model.__class__.__name__ == "ConvSimple" or model.__class__.__name__ == 'ConvBatchNorm':
             train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list = MyNNutils.train_model_cnn(
                 net, X_train, y_train, X_test, y_test, device, do_balance=do_balance, do_print=do_print)
+
+            # train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list, conv_output_list, total_y_batches_list = MyNNutils.train_model_cnn_tsne_draw(
+            #     net, X_train, y_train, X_test, y_test, device, do_balance=do_balance, do_print=do_print)
+
+            # torch.save(conv_output_list, os.path.join(path_to_saved_models, model.__class__.__name__ + '_X_TSNE.pt'))
+            # torch.save(total_y_batches_list, os.path.join(path_to_saved_models, model.__class__.__name__ + '_Y_TSNE.pt'))
+
         else:
             train_history, validation_history, confusion_matrix_train_list, confusion_matrix_test_list = MyNNutils.train_model_conv_lstm(
                 net, X_train, y_train, X_test, y_test, False, device, do_balance=do_balance, do_print=do_print)
@@ -91,6 +98,26 @@ def run_experiment_cross_validation(model, data_dir, num_folds, num_epochs, lear
         confusion_matrix_test_best += confusion_matrix_test_CV[i][best_epoch_id]
 
     return train_history_over_CV, val_history_over_CV, confusion_matrix_test_best
+
+
+def plot_compare_curve(path_to_test_results, smapling=0):
+    if smapling == 0:  # No Sampling
+        val_mlp = np.load(os.path.join(path_to_test_results, "val_MLP.npz"))["arr_0"]
+        val_conv = np.load(os.path.join(path_to_test_results, "val_Conv.npz"))["arr_0"]
+        val_convBatch = np.load(os.path.join(path_to_test_results, "val_ConvBatchNorm.npz"))["arr_0"]
+        val_convLSTM = np.load(os.path.join(path_to_test_results, "val_ConvLSTM.npz"))["arr_0"]
+    elif smapling == 1:  #SMOTE
+        val_mlp = np.load(os.path.join(path_to_test_results, "val_MLP_smote.npz"))["arr_0"]
+        val_conv = np.load(os.path.join(path_to_test_results, "val_Conv_smote.npz"))["arr_0"]
+        val_convBatch = np.load(os.path.join(path_to_test_results, "val_ConvBatchNorm_smote.npz"))["arr_0"]
+        val_convLSTM = np.load(os.path.join(path_to_test_results, "val_ConvLSTM_smote.npz"))["arr_0"]
+    else:  # RUS
+        val_mlp = np.load(os.path.join(path_to_test_results, "val_MLP_under.npz"))["arr_0"]
+        val_conv = np.load(os.path.join(path_to_test_results, "val_Conv_under.npz"))["arr_0"]
+        val_convBatch = np.load(os.path.join(path_to_test_results, "val_ConvBatchNorm_under.npz"))["arr_0"]
+        val_convLSTM = np.load(os.path.join(path_to_test_results, "val_ConvLSTM_under.npz"))["arr_0"]
+
+    plot_test_compare(val_mlp, val_conv, val_convBatch, val_convLSTM)
 
 
 def prep_train_validate_data_no_smote(data_dir, num_folds, fold_id, batch_size):
@@ -250,16 +277,16 @@ def plot_CV_history(train_history_over_CV, val_history_over_CV):
     plt.show()
 
 
-def plot_one_validation_history(mlp, conv, convBatch, convLSTM):
-    num_epoch = len(mlp)
+def plot_test_compare(mlp, conv, convBatch, convLSTM):
+    num_epoch = mlp.shape[1]
 
     mlp = np.asarray(np.matrix(mlp).mean(0)).reshape(-1)
     conv = np.asarray(np.matrix(conv).mean(0)).reshape(-1)
     convBatch = np.asarray(np.matrix(convBatch).mean(0)).reshape(-1)
     convLSTM = np.asarray(np.matrix(convLSTM).mean(0)).reshape(-1)
 
-    xmax = np.argmax(mlp)
-    ymax = mlp[xmax]
+    # xmax = np.argmax(mlp)
+    # ymax = mlp[xmax]
 
 
     # print(max_val, ymax, xmax)
@@ -267,7 +294,7 @@ def plot_one_validation_history(mlp, conv, convBatch, convLSTM):
     # best_epoch_mlp = np.argmax(mlp_mean)
 
     # print(num_epoch)
-    plt.figure(figsize=(16, 6))
+    plt.figure(figsize=(10, 6))
     plt.plot(np.argmax(mlp), mlp[np.argmax(mlp)], 'bo', label="_nolegend_")
     plt.plot(np.argmax(conv), conv[np.argmax(conv)], 'yo', label="_nolegend_")
     plt.plot(np.argmax(convBatch), convBatch[np.argmax(convBatch)], 'go', label="_nolegend_")

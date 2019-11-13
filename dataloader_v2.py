@@ -162,7 +162,7 @@ class SeqDataLoader(object):
         return data_train, label_train, data_test, label_test
     
 
-    def load_data(self, seq_len = 10, shuffle = False, n_files=None):
+    def load_data(self, seq_len = 10, shuffle = True, n_files=None):
         # Remove non-mat files, and perform ascending sort
         allfiles = os.listdir(self.data_dir)
         npzfiles = []

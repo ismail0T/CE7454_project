@@ -7,6 +7,68 @@ import torch.nn.functional as F
 from tcn import TemporalConvNet
 
 
+
+class ConvSimple(nn.Module):
+
+    def __init__(self):
+        super(ConvSimple, self).__init__()
+        self.n_classes = 5
+        self.conv1 = nn.Conv1d(1, 32, kernel_size=10, padding=1, stride=3)
+        self.conv2 = nn.Conv1d(32, 32, kernel_size=10, padding=1, stride=3)
+        self.pool1 = nn.AvgPool1d(2, stride=6)
+
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
+        self.pool2 = nn.AvgPool1d(2, stride=2)
+
+        self.conv5 = nn.Conv1d(64, 256, kernel_size=3, padding=1)
+        self.conv6 = nn.Conv1d(256, 256, kernel_size=3, padding=1)
+        self.pool_avg = nn.AvgPool1d(2)
+
+        self.linear1 = nn.Linear(3328, 128)
+
+        self.dropout1 = nn.Dropout(0.2)
+
+        # LL2:   128  -->  classes
+        self.linear2 = nn.Linear(128, self.n_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.pool1(x)
+        x = self.dropout1(x)
+
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
+        x = self.pool2(x)
+        x = self.dropout1(x)
+
+        x = self.conv5(x)
+        x = F.relu(x)
+        x = self.conv6(x)
+        x = F.relu(x)
+        x = self.pool_avg(x)
+        x = self.dropout1(x)
+
+        x = x.reshape(x.size(0), x.size(1) * x.size(2))
+
+        x = self.linear1(x)
+        xx = F.relu(x)
+
+        x = self.dropout1(xx)
+
+        x = self.linear2(x)
+
+        return x, xx
+
+
+
+
+
 class ConvLSTM01(nn.Module):
 
     def __init__(self, bi_dir):
@@ -668,9 +730,9 @@ class ConvLSTMOld(nn.Module):
         return scores, h_final, c_final
 
 
-class ConvSimple(nn.Module):
+class ConvSimple33(nn.Module):
     def __init__(self):
-        super(ConvSimple, self).__init__()
+        super(ConvSimple33, self).__init__()
         self.n_classes = 5
         # CL1:   28 x 28  -->    64 x 3'000
         self.conv1 = nn.Conv1d(1, 16, kernel_size=10, padding=1, stride=2)
