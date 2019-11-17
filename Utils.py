@@ -179,11 +179,11 @@ def display_num_param(net):
 def prep_train_validate_data_CV(data_dir, fold_id, batch_size, seq_len=1):
     max_time_step = 10
 
-    x = np.load(os.path.join(data_dir, "trainData__SMOTE_all_10s_f" + str(fold_id) +".npz"))
+    x = np.load(os.path.join(data_dir, "trainData__smote_all_10s_f" + str(fold_id) +".npz"))
     X_train = x["x"]
     y_train = x["y"]
 
-    x2 = np.load(os.path.join(data_dir, "trainData__SMOTE_all_10s_f" + str(fold_id) +"_TEST.npz"))
+    x2 = np.load(os.path.join(data_dir, "trainData__smote_all_10s_f" + str(fold_id) +"_TEST.npz"))
     X_test = x2["x"]
     y_test = x2["y"]
 
@@ -214,11 +214,11 @@ def prep_train_validate_data_CV(data_dir, fold_id, batch_size, seq_len=1):
 def prep_train_validate_data_CV_RUS(data_dir, fold_id, batch_size, seq_len=1):
     max_time_step = 10
 
-    x = np.load(os.path.join(data_dir, "trainData_fpz-cz_RUS_all_10s_f" + str(fold_id) +".npz"))
+    x = np.load(os.path.join(data_dir, "trainData_rus_all_10s_f" + str(fold_id) +".npz"))
     X_train = x["x"]
     y_train = x["y"]
 
-    x2 = np.load(os.path.join(data_dir, "trainData_fpz-cz_RUS_all_10s_f" + str(fold_id) +"_TEST.npz"))
+    x2 = np.load(os.path.join(data_dir, "trainData_rus_all_10s_f" + str(fold_id) +"_TEST.npz"))
     X_test = x2["x"]
     y_test = x2["y"]
 
